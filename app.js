@@ -804,6 +804,20 @@ async function generateAiInsights() {
   if (!apiKey) { showToast('Add your Claude API key in Settings', 'error'); switchTab('settings'); return; }
   if (entries.length < 3) { showToast('Add at least 3 entries first', 'error'); return; }
 
+  if (window.location.protocol === 'file:') {
+    document.getElementById('aiInsightsContent').innerHTML = `
+      <p style="color:var(--danger);font-size:14px">⚠️ Cannot reach the API from a local file</p>
+      <p style="font-size:13px;color:var(--text-muted);margin-top:8px;line-height:1.6">
+        Your browser blocks API calls when the app is opened as a <code>file://</code> URL.<br>
+        Open the app through a local server instead:
+      </p>
+      <ul style="font-size:13px;color:var(--text-muted);margin:8px 0 0 18px;line-height:1.8">
+        <li><strong>VS Code:</strong> install <em>Live Server</em>, right-click <code>index.html</code> → <em>Open with Live Server</em></li>
+        <li><strong>Terminal:</strong> run <code>npx serve .</code> or <code>python -m http.server 8080</code> in this folder, then open <code>http://localhost:8080</code></li>
+      </ul>`;
+    return;
+  }
+
   document.getElementById('aiLoading').style.display = '';
   document.getElementById('aiInsightsContent').innerHTML = '';
 
@@ -843,6 +857,7 @@ Be concise, warm, and grounded in what they actually wrote — no generic advice
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
+      credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
