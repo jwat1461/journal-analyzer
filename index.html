@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal &amp; Habit Analyzer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">📓</div>
+      <div>
+        <h1>Journal</h1>
+        <h1>Analyzer</h1>
+        <span class="brand-sub">By WATSON TECH</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-tab="dashboard">
+        <span class="nav-icon">🏠</span><span>Dashboard</span>
+      </button>
+      <button class="nav-item" data-tab="add">
+        <span class="nav-icon">✏️</span><span>Add Entry</span>
+      </button>
+      <button class="nav-item" data-tab="entries">
+        <span class="nav-icon">📚</span><span>Entries</span>
+      </button>
+      <button class="nav-item" data-tab="insights">
+        <span class="nav-icon">📊</span><span>Insights</span>
+      </button>
+      <button class="nav-item" data-tab="settings">
+        <span class="nav-icon">⚙️</span><span>Settings</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- Dashboard -->
+    <div class="tab-content active" id="tab-dashboard">
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        <span class="date-display" id="currentDate"></span>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card streak">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-info">
+            <div class="stat-value" id="currentStreak">0</div>
+            <div class="stat-label">Current Streak</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📝</div>
+          <div class="stat-info">
+            <div class="stat-value" id="totalEntries">0</div>
+            <div class="stat-label">Total Entries</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🏆</div>
+          <div class="stat-info">
+            <div class="stat-value" id="longestStreak">0</div>
+            <div class="stat-label">Longest Streak</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💬</div>
+          <div class="stat-info">
+            <div class="stat-value" id="avgWords">0</div>
+            <div class="stat-label">Avg. Words</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Activity Heatmap</h3>
+          <span class="card-subtitle" id="heatmapRange"></span>
+        </div>
+        <div class="heatmap-wrapper">
+          <div class="heatmap-months" id="heatmapMonths"></div>
+          <div class="heatmap-body">
+            <div class="heatmap-days">
+              <span></span><span>Mon</span><span></span><span>Wed</span>
+              <span></span><span>Fri</span><span></span>
+            </div>
+            <div class="heatmap-container" id="heatmap"></div>
+          </div>
+        </div>
+        <div class="heatmap-legend">
+          <span>Less</span>
+          <div class="legend-squares">
+            <div class="legend-sq level-0"></div>
+            <div class="legend-sq level-1"></div>
+            <div class="legend-sq level-2"></div>
+            <div class="legend-sq level-3"></div>
+            <div class="legend-sq level-4"></div>
+          </div>
+          <span>More</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Recent Entries</h3>
+          <button class="btn btn-ghost" onclick="switchTab('add')">+ Add Entry</button>
+        </div>
+        <div id="recentEntries" class="entries-list"></div>
+      </div>
+    </div>
+
+    <!-- Add Entry -->
+    <div class="tab-content" id="tab-add">
+      <div class="page-header"><h2>Add Entry</h2></div>
+      <div class="card">
+        <form id="entryForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="entryDate" required>
+            </div>
+            <div class="form-group">
+              <label>Mood</label>
+              <div class="mood-picker" id="moodPicker">
+                <button type="button" class="mood-btn" data-mood="1" title="Terrible">😔</button>
+                <button type="button" class="mood-btn" data-mood="2" title="Bad">😕</button>
+                <button type="button" class="mood-btn" data-mood="3" title="Okay">😐</button>
+                <button type="button" class="mood-btn" data-mood="4" title="Good">🙂</button>
+                <button type="button" class="mood-btn" data-mood="5" title="Great">😄</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Journal Entry</label>
+            <textarea id="entryContent" placeholder="What's on your mind today? Write freely..." rows="9"></textarea>
+            <div class="word-count"><span id="wordCount">0</span> words</div>
+          </div>
+
+          <div class="form-group" id="habitsSection">
+            <label>Habits Completed</label>
+            <div class="habits-grid" id="habitsCheckboxes"></div>
+          </div>
+
+          <div class="form-group">
+            <label>Tags <span class="hint">— press Enter to add</span></label>
+            <div class="tags-input-container" id="tagsInputContainer">
+              <div class="tags-display" id="tagsDisplay"></div>
+              <input type="text" id="tagInput" placeholder="Add a tag...">
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Entry</button>
+            <button type="button" class="btn btn-ghost" onclick="clearForm()">Clear</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Import -->
+      <div class="card">
+        <div class="card-header"><h3>Import Entries</h3></div>
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-zone-icon">📁</div>
+          <div class="drop-zone-text">Drop a CSV or TXT file here</div>
+          <div class="drop-zone-hint">CSV format: date, content, mood (optional)</div>
+          <input type="file" id="fileInput" accept=".csv,.txt,.json" hidden>
+          <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">Browse Files</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- All Entries -->
+    <div class="tab-content" id="tab-entries">
+      <div class="page-header">
+        <h2>All Entries</h2>
+        <div class="search-bar">
+          <span>🔍</span>
+          <input type="text" id="searchInput" placeholder="Search entries...">
+        </div>
+      </div>
+      <div class="filter-bar">
+        <select id="filterMood">
+          <option value="">All Moods</option>
+          <option value="5">😄 Great</option>
+          <option value="4">🙂 Good</option>
+          <option value="3">😐 Okay</option>
+          <option value="2">😕 Bad</option>
+          <option value="1">😔 Terrible</option>
+        </select>
+        <select id="filterPeriod">
+          <option value="">All Time</option>
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="365">Last year</option>
+        </select>
+        <select id="sortOrder">
+          <option value="desc">Newest First</option>
+          <option value="asc">Oldest First</option>
+        </select>
+        <span id="entryCount" class="entry-count-badge"></span>
+      </div>
+      <div id="allEntries" class="entries-list"></div>
+    </div>
+
+    <!-- Insights -->
+    <div class="tab-content" id="tab-insights">
+      <div class="page-header"><h2>Insights</h2></div>
+
+      <div class="charts-grid">
+        <div class="card">
+          <div class="card-header"><h3>Entry Frequency</h3><span class="card-subtitle">Last 12 weeks</span></div>
+          <canvas id="frequencyChart" height="180"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Mood Trend</h3><span class="card-subtitle">Last 30 entries</span></div>
+          <canvas id="moodChart" height="180"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Day of Week</h3><span class="card-subtitle">Writing patterns</span></div>
+          <canvas id="dowChart" height="180"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Words Written</h3><span class="card-subtitle">Last 6 months</span></div>
+          <canvas id="wordsChart" height="180"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Most Frequent Words</h3>
+          <span class="card-subtitle">Excluding common words</span>
+        </div>
+        <div class="word-cloud" id="wordCloud"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Patterns &amp; Observations</h3></div>
+        <div class="patterns-list" id="patternsList"></div>
+      </div>
+
+      <div class="card ai-card">
+        <div class="card-header">
+          <h3>✨ AI Insights</h3>
+          <span class="badge">Claude</span>
+        </div>
+        <div id="aiInsightsContent">
+          <p class="muted" id="aiPlaceholder">Add your Claude API key in Settings to get AI-powered analysis of your journal patterns.</p>
+          <button class="btn btn-primary" id="generateInsightsBtn" style="display:none;margin-top:12px" onclick="generateAiInsights()">✨ Analyze with Claude</button>
+        </div>
+        <div id="aiLoading" style="display:none">
+          <div class="ai-loading"><div class="spinner"></div><span>Analyzing your journal with Claude...</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="tab-content" id="tab-settings">
+      <div class="page-header"><h2>Settings</h2></div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Habits</h3>
+          <button class="btn btn-secondary" onclick="showAddHabit()">+ Add Habit</button>
+        </div>
+        <div id="habitsList" class="habits-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Claude AI Integration</h3></div>
+        <div class="form-group">
+          <label>API Key</label>
+          <div class="input-with-btn">
+            <input type="password" id="apiKeyInput" placeholder="...">
+            <button class="btn btn-primary" onclick="saveApiKey()">Save</button>
+          </div>
+          <p class="hint" style="margin-top:8px">Stored locally in your browser — never sent to any server other than Anthropic.</p>
+        </div>
+        <button class="btn btn-secondary" id="goInsightsBtn" onclick="switchTab('insights')" style="display:none">
+          View AI Insights →
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Data Management</h3></div>
+        <div class="btn-group">
+          <button class="btn btn-secondary" onclick="exportData()">📤 Export JSON</button>
+          <button class="btn btn-secondary" onclick="exportCSV()">📊 Export CSV</button>
+          <button class="btn btn-danger" onclick="clearAllData()">🗑️ Clear All Data</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Entry View Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle"></h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="modalDeleteBtn">Delete Entry</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Habit Modal -->
+<div class="modal-overlay" id="habitModal" onclick="closeHabitModal(event)">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3>Add Habit</h3>
+      <button class="modal-close" onclick="closeHabitModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="habitName" placeholder="e.g. Exercise, Meditation...">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Emoji</label>
+          <input type="text" id="habitEmoji" placeholder="🏃" maxlength="2">
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <input type="color" id="habitColor" value="#6366f1" style="height:42px">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveHabit()">Add Habit</button>
+      <button class="btn btn-ghost" onclick="closeHabitModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
