@@ -273,24 +273,41 @@ function bindEntryCards(container) {
 }
 
 function entryCardHTML(e) {
-  const label   = fmtDate(e.date, { weekday:'short', month:'short', day:'numeric', year:'numeric' });
-  const preview = e.content
-    ? escHtml(e.content.substring(0, 130)) + (e.content.length > 130 ? '…' : '')
-    : e.image
-      ? `<img src="${e.image}" style="max-height:60px;border-radius:6px;object-fit:cover">`
-      : '<em style="color:var(--text-muted)">No text content</em>';
+  const label     = fmtDate(e.date, { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+  const timeLabel = e.createdAt
+    ? new Date(e.createdAt).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })
+    : '';
+
+  const imageHTML = e.image
+    ? `<img src="${e.image}" style="width:100%;max-height:160px;border-radius:8px;object-fit:cover;margin-bottom:8px;display:block">`
+    : '';
+
+  const textPreview = e.content
+    ? `<div class="entry-preview">${escHtml(e.content.substring(0, 130))}${e.content.length > 130 ? '…' : ''}</div>`
+    : !e.image
+      ? `<div class="entry-preview"><em style="color:var(--text-muted)">No text content</em></div>`
+      : '';
+
   const tagsHTML = (e.tags || []).slice(0, 4)
     .map(t => `<span class="tag-chip small">#${t}</span>`).join('');
+
+  const footerLeft = e.image && !e.content
+    ? '📷 Photo'
+    : `${e.wordCount || 0} words`;
 
   return `
     <div class="entry-card" data-id="${e.id}">
       <div class="entry-card-header">
-        <span class="entry-date">${label}</span>
+        <div>
+          <span class="entry-date">${label}</span>
+          ${timeLabel ? `<span style="font-size:11px;color:var(--text-muted);margin-left:8px">${timeLabel}</span>` : ''}
+        </div>
         <span class="entry-mood">${e.mood ? MOOD_EMOJI[e.mood] : ''}</span>
       </div>
-      <div class="entry-preview">${preview}</div>
+      ${imageHTML}
+      ${textPreview}
       <div class="entry-footer">
-        <span class="entry-word-count">${e.wordCount || 0} words</span>
+        <span class="entry-word-count">${footerLeft}</span>
         ${tagsHTML}
       </div>
     </div>`;
@@ -837,8 +854,11 @@ Be concise, warm, and grounded in what they actually wrote — no generic advice
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `API error ${res.status}`);
+      const body = await res.json().catch(() => ({}));
+      const msg  = body.error?.message || `API error ${res.status}`;
+      if (res.status === 401) throw new Error('Invalid API key — go to Settings and enter a valid key.');
+      if (res.status === 429) throw new Error('Rate limit reached — wait a moment and try again.');
+      throw new Error(msg);
     }
 
     const data = await res.json();
@@ -852,9 +872,15 @@ Be concise, warm, and grounded in what they actually wrote — no generic advice
       </div>`;
   } catch (err) {
     document.getElementById('aiLoading').style.display = 'none';
+    const isNetworkErr = err instanceof TypeError;
+    const msg = isNetworkErr
+      ? 'Could not reach the API — check your internet connection, or your key may be invalid.'
+      : err.message;
     document.getElementById('aiInsightsContent').innerHTML = `
-      <p style="color:var(--danger);font-size:14px">Error: ${escHtml(err.message)}</p>
-      <button class="btn btn-secondary" style="margin-top:10px" onclick="generateAiInsights()">Try again</button>`;
+      <p style="color:var(--danger);font-size:14px">Error: ${escHtml(msg)}</p>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px">Go to <strong>Settings</strong> to update your Claude API key.</p>
+      <button class="btn btn-secondary" style="margin-top:10px" onclick="generateAiInsights()">Try again</button>
+      <button class="btn btn-secondary" style="margin-top:10px" onclick="switchTab('settings')">Open Settings</button>`;
   }
 }
 
