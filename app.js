@@ -865,7 +865,7 @@ Be concise, warm, and grounded in what they actually wrote — no generic advice
         'anthropic-dangerous-direct-browser-calls': 'true',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-haiku-4-5',
         max_tokens: 1200,
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -876,7 +876,7 @@ Be concise, warm, and grounded in what they actually wrote — no generic advice
       const msg  = body.error?.message || `API error ${res.status}`;
       if (res.status === 401) throw new Error('Invalid API key — go to Settings and enter a valid key.');
       if (res.status === 429) throw new Error('Rate limit reached — wait a moment and try again.');
-      throw new Error(msg);
+      throw new Error(`${msg} (HTTP ${res.status})`);
     }
 
     const data = await res.json();
@@ -889,10 +889,11 @@ Be concise, warm, and grounded in what they actually wrote — no generic advice
         <button class="btn btn-secondary" onclick="generateAiInsights()">🔄 Regenerate</button>
       </div>`;
   } catch (err) {
+    console.error('[AI Insights]', err);
     document.getElementById('aiLoading').style.display = 'none';
     const isNetworkErr = err instanceof TypeError;
     const msg = isNetworkErr
-      ? 'Could not reach the API — check your internet connection, or your key may be invalid.'
+      ? `Network error: ${err.message} — check your internet connection.`
       : err.message;
     document.getElementById('aiInsightsContent').innerHTML = `
       <p style="color:var(--danger);font-size:14px">Error: ${escHtml(msg)}</p>
