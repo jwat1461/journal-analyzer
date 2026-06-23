@@ -32,14 +32,26 @@ const STOP_WORDS = new Set([
   'put','take','took','look','looked','looks','went','been','got','getting'
 ]);
 
+// ── API helper ────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const res = await fetch(`http://localhost:3001${path}`, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  loadData();
+document.addEventListener('DOMContentLoaded', async () => {
   setupNav();
   setupForm();
   setupFileUpload();
   setupSearch();
   setupTheme();
+  await loadData();
   renderAll();
 
   document.getElementById('currentDate').textContent =
@@ -47,32 +59,34 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Data Persistence ─────────────────────────────────────────────────────────
-function loadData() {
-  entries = JSON.parse(localStorage.getItem('ja_entries') || '[]');
-  habits  = JSON.parse(localStorage.getItem('ja_habits')  || '[]');
-  apiKey  = localStorage.getItem('ja_apikey') || '';
+async function loadData() {
+  try {
+    [entries, habits] = await Promise.all([
+      api('GET', '/api/entries'),
+      api('GET', '/api/habits'),
+    ]);
+  } catch {
+    showToast('Cannot reach server — run: node server.js', 'error');
+    entries = []; habits = [];
+  }
 
   if (!habits.length) {
-    habits = [
+    const defaults = [
       { id: 'h1', name: 'Exercise',   emoji: '🏃', color: '#22c55e' },
       { id: 'h2', name: 'Meditation', emoji: '🧘', color: '#6366f1' },
       { id: 'h3', name: 'Reading',    emoji: '📚', color: '#f59e0b' },
       { id: 'h4', name: 'Water',      emoji: '💧', color: '#38bdf8' },
     ];
-    persistData();
+    habits = await Promise.all(defaults.map(h => api('POST', '/api/habits', h)));
   }
 
+  apiKey = localStorage.getItem('ja_apikey') || '';
   if (apiKey) {
     document.getElementById('apiKeyInput').value = apiKey;
     document.getElementById('generateInsightsBtn').style.display = '';
     document.getElementById('goInsightsBtn').style.display = '';
     document.getElementById('aiPlaceholder').style.display = 'none';
   }
-}
-
-function persistData() {
-  localStorage.setItem('ja_entries', JSON.stringify(entries));
-  localStorage.setItem('ja_habits',  JSON.stringify(habits));
 }
 
 // ── Full Render ───────────────────────────────────────────────────────────────
@@ -388,7 +402,7 @@ function renderHabitsCheckboxes() {
   });
 }
 
-function saveEntry() {
+async function saveEntry() {
   const date    = document.getElementById('entryDate').value;
   const content = document.getElementById('entryContent').value.trim();
 
@@ -413,13 +427,16 @@ function saveEntry() {
     createdAt: Date.now(),
   };
 
-  entries.push(entry);
-  entries.sort((a, b) => b.createdAt - a.createdAt);
-  persistData();
-  clearForm();
-  renderAll();
-  switchTab('dashboard');
-  showToast('Entry saved! 📓', 'success');
+  try {
+    const saved = await api('POST', '/api/entries', entry);
+    entries.unshift(saved);
+    clearForm();
+    renderAll();
+    switchTab('dashboard');
+    showToast('Entry saved! 📓', 'success');
+  } catch (err) {
+    showToast('Failed to save entry: ' + err.message, 'error');
+  }
 }
 
 function clearForm() {
@@ -720,13 +737,17 @@ function openEntryModal(id) {
       </div>` : ''}
     <div class="modal-meta">${entry.wordCount || 0} words · ${new Date(entry.createdAt).toLocaleString()}</div>`;
 
-  document.getElementById('modalDeleteBtn').onclick = () => {
+  document.getElementById('modalDeleteBtn').onclick = async () => {
     if (!confirm('Delete this entry permanently?')) return;
-    entries = entries.filter(e => e.id !== id);
-    persistData();
-    renderAll();
-    closeModal();
-    showToast('Entry deleted', 'success');
+    try {
+      await api('DELETE', `/api/entries/${id}`);
+      entries = entries.filter(e => e.id !== id);
+      renderAll();
+      closeModal();
+      showToast('Entry deleted', 'success');
+    } catch (err) {
+      showToast('Failed to delete entry: ' + err.message, 'error');
+    }
   };
 
   document.getElementById('modalOverlay').classList.add('open');
@@ -767,25 +788,33 @@ function closeHabitModal(e) {
   document.getElementById('habitEmoji').value = '';
 }
 
-function saveHabit() {
+async function saveHabit() {
   const name  = document.getElementById('habitName').value.trim();
   const emoji = document.getElementById('habitEmoji').value.trim() || '⭐';
   const color = document.getElementById('habitColor').value;
   if (!name) { showToast('Enter a habit name', 'error'); return; }
-  habits.push({ id: `h-${Date.now()}`, name, emoji, color });
-  persistData();
-  closeHabitModal();
-  renderHabitsList();
-  renderHabitsCheckboxes();
-  showToast('Habit added!', 'success');
+  try {
+    const saved = await api('POST', '/api/habits', { id: `h-${Date.now()}`, name, emoji, color });
+    habits.push(saved);
+    closeHabitModal();
+    renderHabitsList();
+    renderHabitsCheckboxes();
+    showToast('Habit added!', 'success');
+  } catch (err) {
+    showToast('Failed to add habit: ' + err.message, 'error');
+  }
 }
 
-function deleteHabit(id) {
-  habits = habits.filter(h => h.id !== id);
-  persistData();
-  renderHabitsList();
-  renderHabitsCheckboxes();
-  showToast('Habit removed', 'success');
+async function deleteHabit(id) {
+  try {
+    await api('DELETE', `/api/habits/${id}`);
+    habits = habits.filter(h => h.id !== id);
+    renderHabitsList();
+    renderHabitsCheckboxes();
+    showToast('Habit removed', 'success');
+  } catch (err) {
+    showToast('Failed to remove habit: ' + err.message, 'error');
+  }
 }
 
 // ── API Key ───────────────────────────────────────────────────────────────────
@@ -920,20 +949,19 @@ function handleFile(file) {
     reader.onload = e => importImage(e.target.result);
     reader.readAsDataURL(file);
   } else {
-    reader.onload = e => {
-      if (file.name.endsWith('.json')) importJSON(e.target.result);
-      else if (file.name.endsWith('.csv')) importCSV(e.target.result);
-      else importTXT(e.target.result, file.name);
+    reader.onload = async e => {
+      if (file.name.endsWith('.json')) await importJSON(e.target.result);
+      else if (file.name.endsWith('.csv')) await importCSV(e.target.result);
+      else await importTXT(e.target.result, file.name);
     };
     reader.readAsText(file);
   }
 }
 
-function importImage(dataUrl) {
-  const date = dateStr(new Date());
-  entries.push({
+async function importImage(dataUrl) {
+  const entry = {
     id: `img-${Date.now()}`,
-    date,
+    date: dateStr(new Date()),
     content: '',
     image: dataUrl,
     mood: null,
@@ -941,46 +969,49 @@ function importImage(dataUrl) {
     habits: {},
     wordCount: 0,
     createdAt: Date.now(),
-  });
-  entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  persistData();
-  renderAll();
-  showToast('Photo saved! 📷', 'success');
+  };
+  try {
+    const saved = await api('POST', '/api/entries', entry);
+    entries.unshift(saved);
+    renderAll();
+    showToast('Photo saved! 📷', 'success');
+  } catch (err) {
+    showToast('Failed to save photo: ' + err.message, 'error');
+  }
 }
 
-function importJSON(text) {
+async function importJSON(text) {
   try {
     const data = JSON.parse(text);
     const incoming = data.entries || (Array.isArray(data) ? data : []);
-    let added = 0;
-    incoming.forEach(e => {
-      if (e.date && !entries.find(x => x.id === e.id)) {
-        entries.push(e); added++;
-      }
-    });
-    if (data.habits && !habits.length) habits = data.habits;
+    const existingIds = new Set(entries.map(e => e.id));
+    const toAdd = incoming.filter(e => e.date && !existingIds.has(e.id));
+    const saved = await Promise.all(toAdd.map(e => api('POST', '/api/entries', e)));
+    entries.unshift(...saved);
     entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    persistData(); renderAll();
-    showToast(`Imported ${added} entries`, 'success');
+    if (data.habits && !habits.length) {
+      habits = await Promise.all(data.habits.map(h => api('POST', '/api/habits', h)));
+    }
+    renderAll();
+    showToast(`Imported ${saved.length} entries`, 'success');
   } catch {
     showToast('Invalid JSON file', 'error');
   }
 }
 
-function importCSV(text) {
+async function importCSV(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const start = lines[0]?.toLowerCase().includes('date') ? 1 : 0;
-  let added = 0, skipped = 0;
+  const toAdd = []; let skipped = 0;
 
   for (let i = start; i < lines.length; i++) {
     const cols    = parseCSVRow(lines[i]);
     const rawDate = cols[0]?.trim();
     const date    = normalizeDate(rawDate);
     if (!date) { skipped++; continue; }
-
     const content = cols[1]?.trim() || '';
     const mood    = parseInt(cols[2]?.trim());
-    entries.push({
+    toAdd.push({
       id: `import-${Date.now()}-${i}`,
       date, content,
       mood: (mood >= 1 && mood <= 5) ? mood : null,
@@ -988,20 +1019,35 @@ function importCSV(text) {
       wordCount: countWords(content),
       createdAt: Date.now(),
     });
-    added++;
   }
-  entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  persistData(); renderAll();
-  showToast(`Imported ${added} entries${skipped ? `, ${skipped} skipped` : ''}`, 'success');
+  try {
+    const saved = await Promise.all(toAdd.map(e => api('POST', '/api/entries', e)));
+    entries.unshift(...saved);
+    entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    renderAll();
+    showToast(`Imported ${saved.length} entries${skipped ? `, ${skipped} skipped` : ''}`, 'success');
+  } catch (err) {
+    showToast('Import failed: ' + err.message, 'error');
+  }
 }
 
-function importTXT(text, filename) {
-  const date = normalizeDate(filename.replace(/\.[^.]+$/, '')) || dateStr(new Date());
-  entries.push({ id: `txt-${Date.now()}`, date, content: text.trim(), mood: null,
-    tags: [], habits: {}, wordCount: countWords(text), createdAt: Date.now() });
-  entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  persistData(); renderAll();
-  showToast(`Imported entry (${date})`, 'success');
+async function importTXT(text, filename) {
+  const entry = {
+    id: `txt-${Date.now()}`,
+    date: normalizeDate(filename.replace(/\.[^.]+$/, '')) || dateStr(new Date()),
+    content: text.trim(),
+    mood: null, tags: [], habits: {},
+    wordCount: countWords(text), createdAt: Date.now(),
+  };
+  try {
+    const saved = await api('POST', '/api/entries', entry);
+    entries.unshift(saved);
+    entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    renderAll();
+    showToast(`Imported entry (${entry.date})`, 'success');
+  } catch (err) {
+    showToast('Import failed: ' + err.message, 'error');
+  }
 }
 
 function parseCSVRow(line) {
@@ -1053,11 +1099,16 @@ function downloadBlob(blob, name) {
   URL.revokeObjectURL(url);
 }
 
-function clearAllData() {
+async function clearAllData() {
   if (!confirm('Delete ALL entries and habits permanently? This cannot be undone.')) return;
-  entries = []; habits = [];
-  persistData(); renderAll();
-  showToast('All data cleared', 'success');
+  try {
+    await Promise.all([api('DELETE', '/api/entries'), api('DELETE', '/api/habits')]);
+    entries = []; habits = [];
+    renderAll();
+    showToast('All data cleared', 'success');
+  } catch (err) {
+    showToast('Failed to clear data: ' + err.message, 'error');
+  }
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
