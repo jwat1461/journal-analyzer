@@ -250,7 +250,7 @@ function renderAllEntries() {
     const cutoff = dateStr(new Date(Date.now() - period * 864e5));
     list = list.filter(e => e.date >= cutoff);
   }
-  list.sort((a, b) => sortDir === 'desc' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
+  list.sort((a, b) => sortDir === 'desc' ? (b.createdAt || 0) - (a.createdAt || 0) : (a.createdAt || 0) - (b.createdAt || 0));
 
   const badge = document.getElementById('entryCount');
   if (badge) badge.textContent = list.length ? `${list.length} entr${list.length === 1 ? 'y' : 'ies'}` : '';
@@ -414,7 +414,7 @@ function saveEntry() {
   };
 
   entries.push(entry);
-  entries.sort((a, b) => b.date.localeCompare(a.date));
+  entries.sort((a, b) => b.createdAt - a.createdAt);
   persistData();
   clearForm();
   renderAll();
@@ -701,10 +701,13 @@ function openEntryModal(id) {
   const dateLabel = fmtDate(entry.date, { weekday:'long', year:'numeric', month:'long', day:'numeric' });
   const completedHabits = habits.filter(h => entry.habits?.[h.id]);
 
-  document.getElementById('modalTitle').textContent = dateLabel;
+  const timeLabel = entry.createdAt
+    ? new Date(entry.createdAt).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })
+    : '';
+  document.getElementById('modalTitle').textContent = timeLabel ? `${dateLabel} · ${timeLabel}` : dateLabel;
   document.getElementById('modalBody').innerHTML = `
+    ${entry.image ? `<img src="${entry.image}" style="width:100%;max-height:320px;border-radius:10px;object-fit:cover;margin-bottom:16px;display:block">` : ''}
     ${entry.mood ? `<div class="modal-mood"><strong>Mood:</strong> ${MOOD_LABEL[entry.mood]}</div>` : ''}
-    ${entry.image ? `<img src="${entry.image}" style="max-width:100%;border-radius:10px;margin-bottom:14px;display:block">` : ''}
     ${entry.content ? `<div class="modal-entry-text">${escHtml(entry.content)}</div>` : ''}
     ${(entry.tags||[]).length ? `
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
@@ -926,7 +929,7 @@ function importImage(dataUrl) {
     wordCount: 0,
     createdAt: Date.now(),
   });
-  entries.sort((a, b) => b.date.localeCompare(a.date));
+  entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   persistData();
   renderAll();
   showToast('Photo saved! 📷', 'success');
@@ -943,7 +946,7 @@ function importJSON(text) {
       }
     });
     if (data.habits && !habits.length) habits = data.habits;
-    entries.sort((a,b) => b.date.localeCompare(a.date));
+    entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     persistData(); renderAll();
     showToast(`Imported ${added} entries`, 'success');
   } catch {
@@ -974,7 +977,7 @@ function importCSV(text) {
     });
     added++;
   }
-  entries.sort((a,b) => b.date.localeCompare(a.date));
+  entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   persistData(); renderAll();
   showToast(`Imported ${added} entries${skipped ? `, ${skipped} skipped` : ''}`, 'success');
 }
@@ -983,7 +986,7 @@ function importTXT(text, filename) {
   const date = normalizeDate(filename.replace(/\.[^.]+$/, '')) || dateStr(new Date());
   entries.push({ id: `txt-${Date.now()}`, date, content: text.trim(), mood: null,
     tags: [], habits: {}, wordCount: countWords(text), createdAt: Date.now() });
-  entries.sort((a,b) => b.date.localeCompare(a.date));
+  entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   persistData(); renderAll();
   showToast(`Imported entry (${date})`, 'success');
 }
