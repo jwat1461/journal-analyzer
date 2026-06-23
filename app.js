@@ -394,7 +394,6 @@ function saveEntry() {
     createdAt: Date.now(),
   };
 
-  entries = entries.filter(e => e.date !== date);
   entries.push(entry);
   entries.sort((a, b) => b.date.localeCompare(a.date));
   persistData();
