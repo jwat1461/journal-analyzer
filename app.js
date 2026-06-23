@@ -1100,8 +1100,9 @@ function emptyState(icon, title, sub) {
 }
 
 function renderMarkdown(text) {
+  // First, escape the text to prevent XSS, then apply markdown safely
+  text = escHtml(text);
   return text
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/^## (.+)$/gm, '<h4 style="margin:16px 0 8px;font-size:14px;font-weight:700">$1</h4>')
