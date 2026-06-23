@@ -276,7 +276,9 @@ function entryCardHTML(e) {
   const label   = fmtDate(e.date, { weekday:'short', month:'short', day:'numeric', year:'numeric' });
   const preview = e.content
     ? escHtml(e.content.substring(0, 130)) + (e.content.length > 130 ? '…' : '')
-    : '<em style="color:var(--text-muted)">No text content</em>';
+    : e.image
+      ? `<img src="${e.image}" style="max-height:60px;border-radius:6px;object-fit:cover">`
+      : '<em style="color:var(--text-muted)">No text content</em>';
   const tagsHTML = (e.tags || []).slice(0, 4)
     .map(t => `<span class="tag-chip small">#${t}</span>`).join('');
 
@@ -685,6 +687,7 @@ function openEntryModal(id) {
   document.getElementById('modalTitle').textContent = dateLabel;
   document.getElementById('modalBody').innerHTML = `
     ${entry.mood ? `<div class="modal-mood"><strong>Mood:</strong> ${MOOD_LABEL[entry.mood]}</div>` : ''}
+    ${entry.image ? `<img src="${entry.image}" style="max-width:100%;border-radius:10px;margin-bottom:14px;display:block">` : ''}
     ${entry.content ? `<div class="modal-entry-text">${escHtml(entry.content)}</div>` : ''}
     ${(entry.tags||[]).length ? `
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
@@ -871,12 +874,36 @@ function setupFileUpload() {
 
 function handleFile(file) {
   const reader = new FileReader();
-  reader.onload = e => {
-    if (file.name.endsWith('.json')) importJSON(e.target.result);
-    else if (file.name.endsWith('.csv')) importCSV(e.target.result);
-    else importTXT(e.target.result, file.name);
-  };
-  reader.readAsText(file);
+  if (/^image\//i.test(file.type) || /\.(jpe?g|png|gif|webp|bmp)$/i.test(file.name)) {
+    reader.onload = e => importImage(e.target.result);
+    reader.readAsDataURL(file);
+  } else {
+    reader.onload = e => {
+      if (file.name.endsWith('.json')) importJSON(e.target.result);
+      else if (file.name.endsWith('.csv')) importCSV(e.target.result);
+      else importTXT(e.target.result, file.name);
+    };
+    reader.readAsText(file);
+  }
+}
+
+function importImage(dataUrl) {
+  const date = dateStr(new Date());
+  entries.push({
+    id: `img-${Date.now()}`,
+    date,
+    content: '',
+    image: dataUrl,
+    mood: null,
+    tags: [],
+    habits: {},
+    wordCount: 0,
+    createdAt: Date.now(),
+  });
+  entries.sort((a, b) => b.date.localeCompare(a.date));
+  persistData();
+  renderAll();
+  showToast('Photo saved! 📷', 'success');
 }
 
 function importJSON(text) {
@@ -908,7 +935,6 @@ function importCSV(text) {
     const rawDate = cols[0]?.trim();
     const date    = normalizeDate(rawDate);
     if (!date) { skipped++; continue; }
-    if (entries.find(e => e.date === date)) { skipped++; continue; }
 
     const content = cols[1]?.trim() || '';
     const mood    = parseInt(cols[2]?.trim());
@@ -929,9 +955,6 @@ function importCSV(text) {
 
 function importTXT(text, filename) {
   const date = normalizeDate(filename.replace(/\.[^.]+$/, '')) || dateStr(new Date());
-  if (entries.find(e => e.date === date)) {
-    showToast('An entry already exists for that date', 'error'); return;
-  }
   entries.push({ id: `txt-${Date.now()}`, date, content: text.trim(), mood: null,
     tags: [], habits: {}, wordCount: countWords(text), createdAt: Date.now() });
   entries.sort((a,b) => b.date.localeCompare(a.date));
