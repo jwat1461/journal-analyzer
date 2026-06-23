@@ -855,14 +855,11 @@ One thoughtful writing prompt tailored to their current themes.
 Be concise, warm, and grounded in what they actually wrote — no generic advice.`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('http://localhost:3001/api/claude', {
       method: 'POST',
-      credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-calls': 'true',
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5',
@@ -893,7 +890,7 @@ Be concise, warm, and grounded in what they actually wrote — no generic advice
     document.getElementById('aiLoading').style.display = 'none';
     const isNetworkErr = err instanceof TypeError;
     const msg = isNetworkErr
-      ? `Network error: ${err.message} — check your internet connection.`
+      ? `Cannot reach the proxy server — run <code>npm start</code> in the Journal Analyzer folder, then try again.`
       : err.message;
     document.getElementById('aiInsightsContent').innerHTML = `
       <p style="color:var(--danger);font-size:14px">Error: ${escHtml(msg)}</p>
