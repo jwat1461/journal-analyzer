@@ -220,13 +220,14 @@ function showRegister() {
 // ── Data Persistence ─────────────────────────────────────────────────────────
 async function loadData() {
   try {
-    [entries, habits] = await Promise.all([
+    [entries, habits, calEvents] = await Promise.all([
       api('GET', '/api/entries'),
       api('GET', '/api/habits'),
+      api('GET', '/api/calendar-events'),
     ]);
   } catch {
     showToast('Cannot reach server — run: node server.js', 'error');
-    entries = []; habits = [];
+    entries = []; habits = []; calEvents = [];
   }
 
   if (!habits.length) {
@@ -257,6 +258,7 @@ async function loadData() {
 function renderAll() {
   renderStats();
   renderHeatmap();
+  renderDashCalPreview();
   renderRecentEntries();
   renderAllEntries();
   renderWordCloud();
@@ -304,7 +306,63 @@ function applyTheme(theme) {
   document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
 }
 
-// ── Stats ─────────────────────────────────────────────────────────────────────
+// ── Dashboard Calendar Preview ────────────────────────────────────────────────
+function renderDashCalPreview() {
+  const el = document.getElementById('dashCalPreview');
+  if (!el) return;
+
+  const todayStr = dateStr(new Date());
+
+  // Filter: upcoming (today+), exclude auto-journal entries, sort by start time
+  const upcoming = calEvents
+    .filter(ev => {
+      if (!ev.startTime) return false;
+      const local = new Date(ev.startTime);
+      const evDate = `${local.getFullYear()}-${String(local.getMonth()+1).padStart(2,'0')}-${String(local.getDate()).padStart(2,'0')}`;
+      return evDate >= todayStr && !ev.title.startsWith('📓');
+    })
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+    .slice(0, 8);
+
+  if (!upcoming.length) {
+    el.innerHTML = '<p class="muted" style="font-size:13px;padding:4px 0">No upcoming events. <button class="btn btn-ghost" style="padding:2px 8px;font-size:13px" onclick="switchTab(\'calendar\')">Open Calendar</button></p>';
+    return;
+  }
+
+  // Group by local date
+  const groups = {};
+  upcoming.forEach(ev => {
+    const local = new Date(ev.startTime);
+    const d = `${local.getFullYear()}-${String(local.getMonth()+1).padStart(2,'0')}-${String(local.getDate()).padStart(2,'0')}`;
+    (groups[d] = groups[d] || []).push(ev);
+  });
+
+  const tomorrowStr = dateStr(new Date(Date.now() + 864e5));
+
+  const dayLabel = (d) => {
+    if (d === todayStr) return 'Today';
+    if (d === tomorrowStr) return 'Tomorrow';
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  const timeFmt = (ev) => {
+    if (ev.allDay) return '<span class="dash-ev-allday">All day</span>';
+    const t = new Date(ev.startTime);
+    return `<span class="dash-ev-time">${t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>`;
+  };
+
+  el.innerHTML = Object.entries(groups).map(([d, evs]) => `
+    <div class="dash-ev-group">
+      <div class="dash-ev-date">${dayLabel(d)}</div>
+      ${evs.map(ev => `
+        <div class="dash-ev-row" onclick="switchTab('calendar')">
+          <span class="dash-ev-dot" style="background:${ev.color || '#3b82f6'}"></span>
+          ${timeFmt(ev)}
+          <span class="dash-ev-title">${escHtml(ev.title)}</span>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
 function renderStats() {
   const { current, longest } = calcStreaks();
   document.getElementById('currentStreak').textContent = current;
