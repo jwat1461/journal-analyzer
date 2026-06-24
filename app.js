@@ -1501,7 +1501,7 @@ function renderCalendar() {
 
   const eventsByDate = {};
   calEvents.forEach(ev => {
-    if (!ev.startTime) return;
+    if (!ev.startTime || ev.title.startsWith('📓')) return; // journal dots shown separately
     const local = new Date(ev.startTime);
     const d = `${local.getFullYear()}-${String(local.getMonth()+1).padStart(2,'0')}-${String(local.getDate()).padStart(2,'0')}`;
     (eventsByDate[d] = eventsByDate[d] || []).push(ev);
@@ -1535,9 +1535,24 @@ function calDayClick(d) {
   const parsed = new Date(d + 'T00:00:00');
   const label  = parsed.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
   document.getElementById('dayOptionsTitle').textContent = label;
+  document.getElementById('dayOptionsModal').classList.add('open');
+  renderDayPreview(d);
+}
 
-  const dayEntries = entries.filter(e => e.date === d);
+async function renderDayPreview(d) {
   const preview = document.getElementById('dayJournalPreview');
+  preview.innerHTML = '';
+
+  // Re-fetch entries if array looks stale (entries loaded before new ones were added server-side)
+  let pool = entries;
+  if (!pool.some(e => e.date === d)) {
+    try {
+      const fresh = await api('GET', '/api/entries');
+      if (fresh.length > entries.length) { entries = fresh; pool = entries; renderCalendar(); }
+    } catch { /* use existing */ }
+  }
+
+  const dayEntries = pool.filter(e => e.date === d);
   if (dayEntries.length) {
     preview.innerHTML = dayEntries.map(e => `
       <div class="day-entry-preview" onclick="openEntryModal('${e.id}');closeDayOptions()">
@@ -1547,8 +1562,6 @@ function calDayClick(d) {
   } else {
     preview.innerHTML = '<p class="muted" style="font-size:13px;margin-bottom:4px">No journal entry for this day.</p>';
   }
-
-  document.getElementById('dayOptionsModal').classList.add('open');
 }
 
 function closeDayOptions(e) {
@@ -1643,6 +1656,7 @@ async function saveEvent() {
     }
     closeEventModal();
     renderCalendar();
+    renderDashCalPreview();
   } catch (err) {
     showToast('Failed to save event: ' + err.message, 'error');
   }
@@ -1655,6 +1669,7 @@ async function deleteEvent() {
     calEvents = calEvents.filter(e => e.id !== editingEventId);
     closeEventModal();
     renderCalendar();
+    renderDashCalPreview();
     showToast('Event deleted', 'success');
   } catch (err) {
     showToast('Failed to delete event', 'error');
