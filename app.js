@@ -1552,16 +1552,50 @@ async function renderDayPreview(d) {
     } catch { /* use existing */ }
   }
 
+  let html = '';
+
+  // Calendar events for this day (exclude 📓 journal sync events)
+  const dayEvents = calEvents.filter(ev => {
+    if (!ev.startTime || ev.title.startsWith('📓')) return false;
+    const local = new Date(ev.startTime);
+    const evDate = `${local.getFullYear()}-${String(local.getMonth()+1).padStart(2,'0')}-${String(local.getDate()).padStart(2,'0')}`;
+    return evDate === d;
+  });
+
+  if (dayEvents.length) {
+    html += `<div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Events</div>
+      ${dayEvents.map(ev => {
+        const timePart = ev.allDay
+          ? 'All day'
+          : new Date(ev.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        return `<div class="day-entry-preview" onclick="openEventModal(${JSON.stringify(ev).replace(/"/g,'&quot;')});closeDayOptions()">
+          <span style="width:10px;height:10px;border-radius:50%;background:${ev.color || '#3b82f6'};flex-shrink:0;display:inline-block;margin-top:3px"></span>
+          <span style="font-size:12px;color:var(--text-muted);white-space:nowrap">${timePart}</span>
+          <span>${escHtml(ev.title)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  // Journal entries for this day
   const dayEntries = pool.filter(e => e.date === d);
   if (dayEntries.length) {
-    preview.innerHTML = dayEntries.map(e => `
-      <div class="day-entry-preview" onclick="openEntryModal('${e.id}');closeDayOptions()">
-        <span style="font-size:16px">${MOOD_EMOJI[e.mood] || '📓'}</span>
-        <span>${escHtml((e.content || '').substring(0, 90))}${(e.content||'').length > 90 ? '…' : ''}</span>
-      </div>`).join('');
-  } else {
-    preview.innerHTML = '<p class="muted" style="font-size:13px;margin-bottom:4px">No journal entry for this day.</p>';
+    html += `<div style="margin-bottom:4px">
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Journal</div>
+      ${dayEntries.map(e => `
+        <div class="day-entry-preview" onclick="openEntryModal('${e.id}');closeDayOptions()">
+          <span style="font-size:16px">${MOOD_EMOJI[e.mood] || '📓'}</span>
+          <span>${escHtml((e.content || '').substring(0, 90))}${(e.content||'').length > 90 ? '…' : ''}</span>
+        </div>`).join('')}
+    </div>`;
   }
+
+  if (!dayEvents.length && !dayEntries.length) {
+    html = '<p class="muted" style="font-size:13px;margin-bottom:4px">No entries or events for this day.</p>';
+  }
+
+  preview.innerHTML = html;
 }
 
 function closeDayOptions(e) {
