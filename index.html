@@ -7,6 +7,52 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<!-- ── Auth Screen ─────────────────────────────────────────────────────────── -->
+<div id="authScreen" class="auth-overlay" style="display:none">
+  <div class="auth-card">
+    <div class="auth-logo">📓</div>
+    <h1 class="auth-title">AI Journal + NAS</h1>
+    <span class="brand-sub" style="display:block;text-align:center;margin-bottom:24px">By WATSON TECH</span>
+
+    <form id="loginForm" class="auth-form">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px">Sign In</button>
+      <p style="text-align:center;margin-top:14px;font-size:13px;color:var(--text-muted)">
+        No account? <button type="button" class="btn btn-ghost" style="padding:2px 6px;font-size:13px" onclick="showRegister()">Create one</button>
+      </p>
+    </form>
+
+    <form id="registerForm" class="auth-form" style="display:none">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="registerName" placeholder="Your name" required>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="registerEmail" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Password <span class="hint">— min 8 characters</span></label>
+        <input type="password" id="registerPassword" placeholder="At least 8 characters" required autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px">Create Account</button>
+      <p style="text-align:center;margin-top:14px;font-size:13px;color:var(--text-muted)">
+        Have an account? <button type="button" class="btn btn-ghost" style="padding:2px 6px;font-size:13px" onclick="showLogin()">Sign in</button>
+      </p>
+    </form>
+
+    <p id="authError" style="color:var(--danger);font-size:13px;text-align:center;margin-top:10px;display:none"></p>
+  </div>
+</div>
+
 <div class="app">
 
   <!-- Sidebar -->
@@ -29,6 +75,15 @@
       <button class="nav-item" data-tab="entries">
         <span class="nav-icon">📚</span><span>Entries</span>
       </button>
+      <button class="nav-item" data-tab="habits">
+        <span class="nav-icon">🎯</span><span>Habits</span>
+      </button>
+      <button class="nav-item" data-tab="calendar">
+        <span class="nav-icon">📅</span><span>Calendar</span>
+      </button>
+      <button class="nav-item" data-tab="files">
+        <span class="nav-icon">🗂️</span><span>Files</span>
+      </button>
       <button class="nav-item" data-tab="insights">
         <span class="nav-icon">📊</span><span>Insights</span>
       </button>
@@ -37,6 +92,8 @@
       </button>
     </nav>
     <div class="sidebar-footer">
+      <div class="sidebar-user" id="userDisplay"></div>
+      <button class="btn btn-ghost sidebar-logout" onclick="logout()" title="Sign out">🚪 Sign out</button>
       <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
     </div>
   </aside>
@@ -264,6 +321,52 @@
       </div>
     </div>
 
+    <!-- Habits -->
+    <div class="tab-content" id="tab-habits">
+      <div class="page-header">
+        <h2>Habits</h2>
+        <button class="btn btn-secondary" onclick="switchTab('settings')">⚙️ Manage</button>
+      </div>
+      <div id="habitsTrackerContent"></div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="tab-content" id="tab-calendar">
+      <div class="page-header">
+        <h2>Calendar</h2>
+        <button class="btn btn-primary" onclick="openEventModal()">+ New Event</button>
+      </div>
+      <div class="cal-nav">
+        <button class="btn btn-secondary" onclick="calPrev()">‹ Prev</button>
+        <button class="btn btn-ghost" onclick="calToday()">Today</button>
+        <span class="cal-month-label" id="calMonthLabel"></span>
+        <button class="btn btn-secondary" onclick="calNext()">Next ›</button>
+      </div>
+      <div class="cal-day-headers">
+        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-legend">
+        <span><span class="legend-dot" style="background:#22c55e"></span>Journal Entry</span>
+        <span><span class="legend-dot" style="background:#3b82f6"></span>Event</span>
+      </div>
+    </div>
+
+    <!-- Files -->
+    <div class="tab-content" id="tab-files">
+      <div class="page-header">
+        <h2>Files</h2>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="showNewFolder()">📁 New Folder</button>
+          <label class="btn btn-primary" style="cursor:pointer">
+            📤 Upload <input type="file" id="fileUploadInput" style="display:none" multiple onchange="uploadFiles(this)">
+          </label>
+        </div>
+      </div>
+      <div class="files-breadcrumb" id="filesBreadcrumb"></div>
+      <div class="files-grid" id="filesGrid"></div>
+    </div>
+
     <!-- Settings -->
     <div class="tab-content" id="tab-settings">
       <div class="page-header"><h2>Settings</h2></div>
@@ -284,11 +387,19 @@
             <input type="password" id="apiKeyInput" placeholder="enter your Claude API key" style="flex:1">
             <button class="btn btn-primary" onclick="saveApiKey()">Save</button>
           </div>
-          <p class="hint" style="margin-top:8px">Stored locally in your browser — never sent to any server other than Anthropic.</p>
+          <p class="hint" id="apiKeyHint" style="margin-top:8px">Stored locally in your browser — never sent to any server other than Anthropic.</p>
         </div>
         <button class="btn btn-secondary" id="goInsightsBtn" onclick="switchTab('insights')" style="display:none">
           View AI Insights →
         </button>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Calendar Sync</h3></div>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
+          New journal entries automatically appear on the calendar. Use the button below to backfill past entries.
+        </p>
+        <button id="syncCalBtn" class="btn btn-secondary" onclick="syncJournalToCalendar()">📅 Sync Journal → Calendar</button>
       </div>
 
       <div class="card">
@@ -348,6 +459,94 @@
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="saveHabit()">Add Habit</button>
       <button class="btn btn-ghost" onclick="closeHabitModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Calendar Event Modal -->
+<div class="modal-overlay" id="eventModal" onclick="closeEventModal(event)">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3 id="eventModalTitle">New Event</h3>
+      <button class="modal-close" onclick="closeEventModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Title *</label>
+        <input type="text" id="evTitle" placeholder="Event title">
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="evDesc" rows="2" placeholder="Optional description"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Start</label>
+          <input type="datetime-local" id="evStart">
+        </div>
+        <div class="form-group">
+          <label>End</label>
+          <input type="datetime-local" id="evEnd">
+        </div>
+      </div>
+      <div class="form-row" style="align-items:center;gap:16px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="evAllDay" onchange="toggleAllDay()"> All-day
+        </label>
+        <div class="form-group" style="margin:0;display:flex;align-items:center;gap:8px">
+          <label style="margin:0">Color</label>
+          <div class="color-swatches" id="evColorSwatches">
+            <button class="color-swatch selected" style="background:#3b82f6" data-color="#3b82f6" onclick="pickColor(this)"></button>
+            <button class="color-swatch" style="background:#10b981" data-color="#10b981" onclick="pickColor(this)"></button>
+            <button class="color-swatch" style="background:#f59e0b" data-color="#f59e0b" onclick="pickColor(this)"></button>
+            <button class="color-swatch" style="background:#ef4444" data-color="#ef4444" onclick="pickColor(this)"></button>
+            <button class="color-swatch" style="background:#8b5cf6" data-color="#8b5cf6" onclick="pickColor(this)"></button>
+            <button class="color-swatch" style="background:#ec4899" data-color="#ec4899" onclick="pickColor(this)"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveEvent()">Save Event</button>
+      <button class="btn btn-danger" id="evDeleteBtn" style="display:none" onclick="deleteEvent()">Delete</button>
+      <button class="btn btn-ghost" onclick="closeEventModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Folder Modal -->
+<div class="modal-overlay" id="folderModal" onclick="closeFolderModal(event)">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <h3>New Folder</h3>
+      <button class="modal-close" onclick="closeFolderModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Folder Name</label>
+        <input type="text" id="folderName" placeholder="e.g. Documents">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="createFolder()">Create</button>
+      <button class="btn btn-ghost" onclick="closeFolderModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Day Options Modal (calendar date click) -->
+<div class="modal-overlay" id="dayOptionsModal" onclick="closeDayOptions(event)">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <h3 id="dayOptionsTitle"></h3>
+      <button class="modal-close" onclick="closeDayOptions()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="dayJournalPreview" style="margin-bottom:14px"></div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-primary" onclick="addEntryForDate()">📓 Add Journal Entry for this date</button>
+        <button class="btn btn-secondary" onclick="addEventForDate()">📅 Add Calendar Event</button>
+      </div>
     </div>
   </div>
 </div>

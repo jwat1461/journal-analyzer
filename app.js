@@ -7,6 +7,30 @@ let currentTags = [];
 let selectedMood = null;
 let charts = {};
 let apiKey = '';
+let serverClaudeReady = false; // true when ANTHROPIC_API_KEY is set in server .env
+
+// Auth state
+let authToken = localStorage.getItem('ja_token') || '';
+let authUser  = null;
+
+// Calendar state
+let calEvents  = [];
+let calYear    = new Date().getFullYear();
+let calMonth   = new Date().getMonth();
+let editingEventId  = null;
+let selectedEventColor = '#3b82f6';
+let selectedCalDate = null;
+
+// Files state
+let currentFolderId = null;
+let folderStack     = [];
+
+const API_BASE = (() => {
+  const override = localStorage.getItem('ja_api_base')?.trim();
+  if (override) return override.replace(/\/+$/, '');
+  if (window.location.protocol === 'file:') return 'http://localhost:5500';
+  return '';
+})();
 
 const MOOD_LABEL = ['','Terrible 😔','Bad 😕','Okay 😐','Good 🙂','Great 😄'];
 const MOOD_EMOJI  = ['','😔','😕','😐','🙂','😄'];
@@ -33,15 +57,27 @@ const STOP_WORDS = new Set([
 ]);
 
 // ── API helper ────────────────────────────────────────────────────────────────
+async function safeJson(res) {
+  const text = await res.text();
+  if (!text.trim()) return {};
+  try { return JSON.parse(text); } catch { return {}; }
+}
+
 async function api(method, path, body) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  const headers = { 'Content-Type': 'application/json' };
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+  const opts = { method, headers };
   if (body !== undefined) opts.body = JSON.stringify(body);
-  const res = await fetch(`http://localhost:3001${path}`, opts);
+  const res = await fetch(`${API_BASE}${path}`, opts);
+  if (res.status === 401) {
+    showAuthScreen();
+    throw new Error('Please log in');
+  }
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
+    const err = await safeJson(res);
     throw new Error(err.error || `HTTP ${res.status}`);
   }
-  return res.json();
+  return safeJson(res);
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
@@ -51,12 +87,131 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupFileUpload();
   setupSearch();
   setupTheme();
-  await loadData();
-  renderAll();
+  setupAuth();
 
   document.getElementById('currentDate').textContent =
     new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const authed = await initAuth();
+  if (authed) {
+    await loadData();
+    renderAll();
+  }
 });
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+function setupAuth() {
+  document.getElementById('loginForm')?.addEventListener('submit', handleLogin);
+  document.getElementById('registerForm')?.addEventListener('submit', handleRegister);
+}
+
+async function initAuth() {
+  try {
+    const status = await fetch(`${API_BASE}/api/auth/status`).then(safeJson);
+    serverClaudeReady = !!status.claudeReady;
+    if (!status.needsAuth) {
+      hideAuthScreen();
+      return true;
+    }
+    if (authToken) {
+      try {
+        authUser = await api('GET', '/api/auth/me');
+        hideAuthScreen();
+        return true;
+      } catch {
+        authToken = '';
+        localStorage.removeItem('ja_token');
+      }
+    }
+    showAuthScreen();
+    return false;
+  } catch {
+    showToast('Cannot reach server — run: node server.js', 'error');
+    return false;
+  }
+}
+
+function showAuthScreen() {
+  document.getElementById('authScreen').style.display = 'flex';
+}
+
+function hideAuthScreen() {
+  document.getElementById('authScreen').style.display = 'none';
+  const el = document.getElementById('userDisplay');
+  if (el && authUser) el.textContent = authUser.name;
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  clearAuthError();
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    authToken = data.token;
+    authUser  = data.user;
+    localStorage.setItem('ja_token', authToken);
+    hideAuthScreen();
+    await loadData();
+    renderAll();
+  } catch (err) { showAuthError(err.message); }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const name     = document.getElementById('registerName').value.trim();
+  const email    = document.getElementById('registerEmail').value.trim();
+  const password = document.getElementById('registerPassword').value;
+  clearAuthError();
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password }),
+    });
+    const data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
+    authToken = data.token;
+    authUser  = data.user;
+    localStorage.setItem('ja_token', authToken);
+    hideAuthScreen();
+    await loadData();
+    renderAll();
+  } catch (err) { showAuthError(err.message); }
+}
+
+function logout() {
+  authToken = '';
+  authUser  = null;
+  localStorage.removeItem('ja_token');
+  entries = []; habits = []; calEvents = [];
+  showAuthScreen();
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  if (el) { el.textContent = msg; el.style.display = ''; }
+}
+function clearAuthError() {
+  const el = document.getElementById('authError');
+  if (el) el.style.display = 'none';
+}
+function showLogin() {
+  document.getElementById('loginForm').style.display = '';
+  document.getElementById('registerForm').style.display = 'none';
+  clearAuthError();
+}
+function showRegister() {
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('registerForm').style.display = '';
+  clearAuthError();
+}
 
 // ── Data Persistence ─────────────────────────────────────────────────────────
 async function loadData() {
@@ -81,11 +236,16 @@ async function loadData() {
   }
 
   apiKey = localStorage.getItem('ja_apikey') || '';
-  if (apiKey) {
-    document.getElementById('apiKeyInput').value = apiKey;
+  const claudeAvailable = apiKey || serverClaudeReady;
+  if (apiKey) document.getElementById('apiKeyInput').value = apiKey;
+  if (claudeAvailable) {
     document.getElementById('generateInsightsBtn').style.display = '';
     document.getElementById('goInsightsBtn').style.display = '';
     document.getElementById('aiPlaceholder').style.display = 'none';
+  }
+  if (serverClaudeReady && !apiKey) {
+    const hint = document.getElementById('apiKeyHint');
+    if (hint) hint.textContent = 'Claude API key is configured on the server — no key needed here.';
   }
 }
 
@@ -117,6 +277,9 @@ function switchTab(tab) {
   document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
   document.getElementById(`tab-${tab}`).classList.add('active');
   if (tab === 'insights') setTimeout(renderCharts, 30);
+  if (tab === 'habits')   renderHabitsTab();
+  if (tab === 'calendar') loadCalendarEvents();
+  if (tab === 'files')    loadFiles();
 }
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
@@ -830,7 +993,7 @@ function saveApiKey() {
 
 // ── AI Insights ───────────────────────────────────────────────────────────────
 async function generateAiInsights() {
-  if (!apiKey) { showToast('Add your Claude API key in Settings', 'error'); switchTab('settings'); return; }
+  if (!apiKey && !serverClaudeReady) { showToast('Add your Claude API key in Settings', 'error'); switchTab('settings'); return; }
   if (entries.length < 3) { showToast('Add at least 3 entries first', 'error'); return; }
 
   if (window.location.protocol === 'file:') {
@@ -844,6 +1007,19 @@ async function generateAiInsights() {
         <li><strong>VS Code:</strong> install <em>Live Server</em>, right-click <code>index.html</code> → <em>Open with Live Server</em></li>
         <li><strong>Terminal:</strong> run <code>npx serve .</code> or <code>python -m http.server 8080</code> in this folder, then open <code>http://localhost:8080</code></li>
       </ul>`;
+    return;
+  }
+
+  try {
+    const health = await fetch(`${API_BASE}/api/auth/status`);
+    if (!health.ok) {
+      throw new Error(`Backend unavailable (HTTP ${health.status})`);
+    }
+  } catch {
+    document.getElementById('aiInsightsContent').innerHTML = `
+      <p style="color:var(--danger);font-size:14px">Error: Cannot reach backend API.</p>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px">Start the server with <strong>npm start</strong>, then try again.</p>
+      <button class="btn btn-secondary" style="margin-top:10px" onclick="generateAiInsights()">Try again</button>`;
     return;
   }
 
@@ -884,14 +1060,15 @@ One thoughtful writing prompt tailored to their current themes.
 Be concise, warm, and grounded in what they actually wrote — no generic advice.`;
 
   try {
-    const res = await fetch('http://localhost:3001/api/claude', {
+    const res = await fetch(`${API_BASE}/api/claude`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
+        ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1200,
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -901,11 +1078,13 @@ Be concise, warm, and grounded in what they actually wrote — no generic advice
       const body = await res.json().catch(() => ({}));
       const msg  = body.error?.message || `API error ${res.status}`;
       if (res.status === 401) throw new Error('Invalid API key — go to Settings and enter a valid key.');
+      if (res.status === 403) throw new Error('Claude access denied for this key/account. Verify your API key permissions.');
       if (res.status === 429) throw new Error('Rate limit reached — wait a moment and try again.');
+      if (res.status >= 500) throw new Error('Claude service is temporarily unavailable. Try again in a moment.');
       throw new Error(`${msg} (HTTP ${res.status})`);
     }
 
-    const data = await res.json();
+    const data = await safeJson(res);
     const text = data.content?.[0]?.text || '';
 
     document.getElementById('aiLoading').style.display = 'none';
@@ -1119,6 +1298,459 @@ function showToast(msg, type = '') {
   el.className = `toast ${type} show`;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Habits Tracker ────────────────────────────────────────────────────────────
+function renderHabitsTab() {
+  const el = document.getElementById('habitsTrackerContent');
+  if (!el) return;
+
+  if (!habits.length) {
+    el.innerHTML = `<div class="empty-state" style="margin-top:60px;text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">🎯</div>
+      <p style="color:var(--text-muted);margin-bottom:16px">No habits yet. Add some in Settings.</p>
+      <button class="btn btn-primary" onclick="switchTab('settings')">Go to Settings</button>
+    </div>`;
+    return;
+  }
+
+  // Build completion map: habitId → Set of date strings where it was completed
+  const done = {};
+  habits.forEach(h => { done[h.id] = new Set(); });
+  entries.forEach(e => {
+    if (!e.habits) return;
+    for (const [hid, checked] of Object.entries(e.habits)) {
+      if (checked && done[hid] !== undefined) done[hid].add(e.date);
+    }
+  });
+
+  const today = dateStr(new Date());
+  const todayHabits = entries.find(e => e.date === today)?.habits || {};
+
+  // Last 30 days oldest→newest
+  const days = Array.from({ length: 30 }, (_, i) => {
+    return dateStr(new Date(Date.now() - (29 - i) * 864e5));
+  });
+
+  const calcStreak = (habitId) => {
+    let n = 0;
+    let d = new Date();
+    while (done[habitId].has(dateStr(d))) { n++; d = new Date(d - 864e5); }
+    return n;
+  };
+
+  const DAY1 = ['S','M','T','W','T','F','S'];
+
+  const headerCols = days.map(d => {
+    const isToday = d === today;
+    const dow = new Date(d + 'T00:00:00').getDay();
+    return `<div class="ht-cell ht-head${isToday ? ' ht-today-col' : ''}">${isToday ? '●' : DAY1[dow]}</div>`;
+  }).join('');
+
+  const rows = habits.map(h => {
+    const streak = calcStreak(h.id);
+    const dots = days.map(d => {
+      const isToday = d === today;
+      const isChecked = isToday ? (todayHabits[h.id] === true) : done[h.id].has(d);
+      if (isToday) {
+        return `<div class="ht-cell ht-today-col">
+          <input type="checkbox" class="ht-cb" data-habit="${h.id}" ${isChecked ? 'checked' : ''}
+            onchange="toggleTodayHabit('${h.id}', this.checked)"
+            title="Toggle ${escHtml(h.name)} for today">
+        </div>`;
+      }
+      return `<div class="ht-cell${isChecked ? ' ht-done' : ''}"
+        style="${isChecked ? `background:${h.color};border-color:${h.color}` : ''}"
+        title="${d}"></div>`;
+    }).join('');
+
+    return `<div class="ht-row">
+      <div class="ht-label">
+        <span class="ht-emoji">${h.emoji}</span>
+        <span class="ht-name">${escHtml(h.name)}</span>
+      </div>
+      <div class="ht-streak">
+        ${streak > 0
+          ? `<span class="ht-streak-badge" style="background:${h.color}20;color:${h.color};border:1px solid ${h.color}40">🔥 ${streak}</span>`
+          : `<span class="ht-streak-zero">—</span>`}
+      </div>
+      <div class="ht-grid">${dots}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="ht-wrap">
+      <div class="ht-row ht-header-row">
+        <div class="ht-label" style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Habit</div>
+        <div class="ht-streak" style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Streak</div>
+        <div class="ht-grid">${headerCols}</div>
+      </div>
+      ${rows}
+      <p class="ht-hint">Click ● (today's column) to mark a habit complete. Past days update when you save a journal entry.</p>
+    </div>`;
+}
+
+async function toggleTodayHabit(habitId, checked) {
+  const today = dateStr(new Date());
+  const existing = entries.find(e => e.date === today);
+  const updatedHabits = { ...(existing?.habits || {}) };
+  updatedHabits[habitId] = checked;
+
+  const entry = existing
+    ? { ...existing, habits: updatedHabits }
+    : {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        date: today, content: '', mood: null, tags: [],
+        habits: updatedHabits, wordCount: 0, createdAt: Date.now(),
+      };
+
+  try {
+    const saved = await api('POST', '/api/entries', entry);
+    if (existing) {
+      entries = entries.map(e => e.id === existing.id ? saved : e);
+    } else {
+      entries.unshift(saved);
+    }
+    renderHabitsTab();
+  } catch (err) {
+    showToast('Failed to save habit: ' + err.message, 'error');
+  }
+}
+
+// ── Calendar ──────────────────────────────────────────────────────────────────
+async function loadCalendarEvents() {
+  try {
+    calEvents = await api('GET', '/api/calendar-events');
+  } catch {
+    calEvents = [];
+  }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const firstDay   = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const todayStr   = dateStr(new Date());
+
+  const monthLabel = new Date(calYear, calMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  document.getElementById('calMonthLabel').textContent = monthLabel;
+
+  const entryDates = new Set(entries.map(e => e.date));
+
+  const eventsByDate = {};
+  calEvents.forEach(ev => {
+    if (!ev.startTime) return;
+    const local = new Date(ev.startTime);
+    const d = `${local.getFullYear()}-${String(local.getMonth()+1).padStart(2,'0')}-${String(local.getDate()).padStart(2,'0')}`;
+    (eventsByDate[d] = eventsByDate[d] || []).push(ev);
+  });
+
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-cell empty"></div>';
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d   = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const evs = eventsByDate[d] || [];
+    const hasEntry = entryDates.has(d);
+    html += `
+      <div class="cal-cell${d === todayStr ? ' today' : ''}" onclick="calDayClick('${d}')">
+        <div class="cal-day-num">${day}</div>
+        ${hasEntry ? '<div class="cal-journal-dot" title="Journal entry">📓</div>' : ''}
+        ${evs.slice(0, 3).map(ev => `
+          <div class="cal-event-bar" style="background:${ev.color}"
+               onclick="event.stopPropagation();openEventModal(${JSON.stringify(ev).replace(/"/g,'&quot;')})">
+            ${escHtml(ev.title)}
+          </div>`).join('')}
+        ${evs.length > 3 ? `<div class="cal-more">+${evs.length - 3} more</div>` : ''}
+      </div>`;
+  }
+
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+function calDayClick(d) {
+  selectedCalDate = d;
+  const parsed = new Date(d + 'T00:00:00');
+  const label  = parsed.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+  document.getElementById('dayOptionsTitle').textContent = label;
+
+  const dayEntries = entries.filter(e => e.date === d);
+  const preview = document.getElementById('dayJournalPreview');
+  if (dayEntries.length) {
+    preview.innerHTML = dayEntries.map(e => `
+      <div class="day-entry-preview" onclick="openEntryModal('${e.id}');closeDayOptions()">
+        <span style="font-size:16px">${MOOD_EMOJI[e.mood] || '📓'}</span>
+        <span>${escHtml((e.content || '').substring(0, 90))}${(e.content||'').length > 90 ? '…' : ''}</span>
+      </div>`).join('');
+  } else {
+    preview.innerHTML = '<p class="muted" style="font-size:13px;margin-bottom:4px">No journal entry for this day.</p>';
+  }
+
+  document.getElementById('dayOptionsModal').classList.add('open');
+}
+
+function closeDayOptions(e) {
+  if (e && e.target !== document.getElementById('dayOptionsModal')) return;
+  document.getElementById('dayOptionsModal').classList.remove('open');
+}
+
+function addEntryForDate() {
+  closeDayOptions();
+  switchTab('add');
+  const di = document.getElementById('entryDate');
+  if (di && selectedCalDate) { di.value = selectedCalDate; }
+}
+
+function addEventForDate() {
+  closeDayOptions();
+  openEventModal(null, selectedCalDate);
+}
+
+function calPrev() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
+function calNext() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
+function calToday() { calYear = new Date().getFullYear(); calMonth = new Date().getMonth(); renderCalendar(); }
+
+function openEventModal(ev, prefillDate) {
+  editingEventId = null;
+  selectedEventColor = '#3b82f6';
+
+  document.getElementById('eventModalTitle').textContent = ev ? 'Edit Event' : 'New Event';
+  document.getElementById('evTitle').value      = ev ? ev.title : '';
+  document.getElementById('evDesc').value       = ev ? (ev.description || '') : '';
+  document.getElementById('evAllDay').checked   = ev ? ev.allDay : false;
+  document.getElementById('evDeleteBtn').style.display = ev ? '' : 'none';
+
+  const base = prefillDate || dateStr(new Date());
+  const startDT = ev ? toLocalDT(ev.startTime) : base + 'T09:00';
+  const endDT   = ev ? toLocalDT(ev.endTime)   : base + 'T10:00';
+  document.getElementById('evStart').value = startDT;
+  document.getElementById('evEnd').value   = endDT;
+
+  if (ev) { editingEventId = ev.id; selectedEventColor = ev.color || '#3b82f6'; }
+  document.querySelectorAll('.color-swatch').forEach(s => {
+    s.classList.toggle('selected', s.dataset.color === selectedEventColor);
+  });
+
+  toggleAllDay();
+  document.getElementById('eventModal').classList.add('open');
+  setTimeout(() => document.getElementById('evTitle').focus(), 50);
+}
+
+function closeEventModal(e) {
+  if (e && e.target !== document.getElementById('eventModal')) return;
+  document.getElementById('eventModal').classList.remove('open');
+}
+
+function pickColor(el) {
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedEventColor = el.dataset.color;
+}
+
+function toggleAllDay() {
+  const allDay = document.getElementById('evAllDay').checked;
+  document.getElementById('evStart').type = allDay ? 'date' : 'datetime-local';
+  document.getElementById('evEnd').type   = allDay ? 'date' : 'datetime-local';
+}
+
+async function saveEvent() {
+  const title = document.getElementById('evTitle').value.trim();
+  if (!title) { showToast('Event title is required', 'error'); return; }
+  const allDay = document.getElementById('evAllDay').checked;
+  const startRaw = document.getElementById('evStart').value;
+  const endRaw   = document.getElementById('evEnd').value;
+  const startTime = allDay ? startRaw + 'T00:00:00' : startRaw + ':00';
+  const endTime   = allDay ? (endRaw   + 'T23:59:59') : (endRaw + ':00');
+
+  const body = {
+    title,
+    description: document.getElementById('evDesc').value.trim() || null,
+    startTime, endTime, allDay,
+    color: selectedEventColor,
+  };
+
+  try {
+    if (editingEventId) {
+      const updated = await api('PUT', `/api/calendar-events/${editingEventId}`, body);
+      calEvents = calEvents.map(e => e.id === editingEventId ? updated : e);
+      showToast('Event updated', 'success');
+    } else {
+      const created = await api('POST', '/api/calendar-events', body);
+      calEvents.push(created);
+      showToast('Event created!', 'success');
+    }
+    closeEventModal();
+    renderCalendar();
+  } catch (err) {
+    showToast('Failed to save event: ' + err.message, 'error');
+  }
+}
+
+async function deleteEvent() {
+  if (!editingEventId || !confirm('Delete this event?')) return;
+  try {
+    await api('DELETE', `/api/calendar-events/${editingEventId}`);
+    calEvents = calEvents.filter(e => e.id !== editingEventId);
+    closeEventModal();
+    renderCalendar();
+    showToast('Event deleted', 'success');
+  } catch (err) {
+    showToast('Failed to delete event', 'error');
+  }
+}
+
+function toLocalDT(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// ── Files ─────────────────────────────────────────────────────────────────────
+async function loadFiles(folderId) {
+  currentFolderId = folderId ?? null;
+  try {
+    const [folders, files] = await Promise.all([
+      api('GET', `/api/folders${folderId ? `?parentId=${folderId}` : ''}`),
+      api('GET', `/api/files${folderId    ? `?folderId=${folderId}` : ''}`),
+    ]);
+    renderFiles(folders, files);
+  } catch (err) {
+    showToast('Failed to load files: ' + err.message, 'error');
+  }
+}
+
+function renderFiles(folders, files) {
+  const crumb = document.getElementById('filesBreadcrumb');
+  crumb.innerHTML = `<span class="crumb${currentFolderId === null ? ' active' : ''}"
+    onclick="navToFolder(null)">🏠 Home</span>` +
+    folderStack.map((f, i) => `
+      <span class="crumb-sep">›</span>
+      <span class="crumb${i === folderStack.length - 1 ? ' active' : ''}"
+        onclick="navToFolder(${f.id}, ${i})">${escHtml(f.name)}</span>`).join('');
+
+  const grid = document.getElementById('filesGrid');
+  if (!folders.length && !files.length) {
+    grid.innerHTML = '<div class="files-empty">📂 This folder is empty</div>'; return;
+  }
+
+  grid.innerHTML =
+    folders.map(f => `
+      <div class="file-card folder" onclick="navToFolder(${f.id}, -1, '${escHtml(f.name)}')">
+        <div class="file-icon">📁</div>
+        <div class="file-name">${escHtml(f.name)}</div>
+        <button class="file-del" onclick="event.stopPropagation();deleteFolder(${f.id})" title="Delete">✕</button>
+      </div>`).join('') +
+    files.map(f => `
+      <div class="file-card" onclick="downloadFile(${f.id})">
+        <div class="file-icon">${fileIcon(f.mimeType)}</div>
+        <div class="file-name">${escHtml(f.originalName)}</div>
+        <div class="file-size">${fmtSize(f.size)}</div>
+        <button class="file-del" onclick="event.stopPropagation();deleteFile(${f.id})" title="Delete">✕</button>
+      </div>`).join('');
+}
+
+function navToFolder(id, stackIdx, name) {
+  if (id === null) { folderStack = []; }
+  else if (stackIdx === -1) { folderStack.push({ id, name }); }
+  else { folderStack = folderStack.slice(0, stackIdx + 1); }
+  loadFiles(id);
+}
+
+function showNewFolder() {
+  document.getElementById('folderName').value = '';
+  document.getElementById('folderModal').classList.add('open');
+  setTimeout(() => document.getElementById('folderName').focus(), 50);
+}
+function closeFolderModal(e) {
+  if (e && e.target !== document.getElementById('folderModal')) return;
+  document.getElementById('folderModal').classList.remove('open');
+}
+async function createFolder() {
+  const name = document.getElementById('folderName').value.trim();
+  if (!name) { showToast('Enter a folder name', 'error'); return; }
+  try {
+    await api('POST', '/api/folders', { name, parentId: currentFolderId });
+    closeFolderModal();
+    loadFiles(currentFolderId);
+    showToast('Folder created!', 'success');
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+async function deleteFolder(id) {
+  if (!confirm('Delete this folder and all its contents?')) return;
+  try {
+    await api('DELETE', `/api/folders/${id}`);
+    loadFiles(currentFolderId);
+    showToast('Folder deleted', 'success');
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+async function uploadFiles(input) {
+  const fileList = [...input.files];
+  if (!fileList.length) return;
+  showToast(`Uploading ${fileList.length} file(s)…`, '');
+  const uploadHeaders = {};
+  if (authToken) uploadHeaders['Authorization'] = `Bearer ${authToken}`;
+  for (const file of fileList) {
+    const fd = new FormData();
+    fd.append('file', file);
+    if (currentFolderId) fd.append('folderId', currentFolderId);
+    const res = await fetch(`${API_BASE}/api/files`, { method: 'POST', body: fd, headers: uploadHeaders });
+    if (!res.ok) { showToast('Upload failed: ' + file.name, 'error'); return; }
+  }
+  input.value = '';
+  loadFiles(currentFolderId);
+  showToast(`Uploaded ${fileList.length} file(s)!`, 'success');
+}
+
+function downloadFile(id) {
+  window.open(`${API_BASE}/api/files/${id}/download`, '_blank');
+}
+
+// ── Journal → Calendar sync ───────────────────────────────────────────────────
+async function syncJournalToCalendar() {
+  const btn = document.getElementById('syncCalBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
+  try {
+    const result = await api('POST', '/api/entries/sync-calendar');
+    showToast(`✅ Synced! ${result.created} created, ${result.updated} updated`, 'success');
+    if (document.getElementById('tab-calendar').classList.contains('active')) {
+      loadCalendarEvents();
+    }
+  } catch (err) {
+    showToast('Sync failed: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📅 Sync Journal → Calendar'; }
+  }
+}
+
+async function deleteFile(id) {
+  if (!confirm('Delete this file permanently?')) return;
+  try {
+    await api('DELETE', `/api/files/${id}`);
+    loadFiles(currentFolderId);
+    showToast('File deleted', 'success');
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+function fileIcon(mime) {
+  if (!mime) return '📄';
+  if (mime.startsWith('image/'))  return '🖼️';
+  if (mime.startsWith('video/'))  return '🎬';
+  if (mime.startsWith('audio/'))  return '🎵';
+  if (mime.includes('pdf'))       return '📕';
+  if (mime.includes('word') || mime.includes('document')) return '📝';
+  if (mime.includes('spreadsheet') || mime.includes('excel')) return '📊';
+  if (mime.includes('zip') || mime.includes('compressed') || mime.includes('7z')) return '🗜️';
+  if (mime.includes('python') || mime.includes('javascript') || mime.includes('text/x-')) return '💻';
+  return '📄';
+}
+
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 ** 3)   return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  return (bytes / 1024 ** 3).toFixed(2) + ' GB';
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
