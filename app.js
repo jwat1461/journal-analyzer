@@ -2737,6 +2737,7 @@ function emptyState(icon, title, sub) {
   </div>`;
 }
 
+
 function renderMarkdown(text) {
   // First, escape the text to prevent XSS, then apply markdown safely
   text = escHtml(text);
