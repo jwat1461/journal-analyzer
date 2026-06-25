@@ -65,6 +65,23 @@ const NA_STEP_DESC = [
 ];
 const MTG_COMMIT_LABELS = { member:'Member', chair:'🎙️ Chair', read:'📖 Read', greet:'🤝 Greet', share:'💬 Share', speaker:'🎤 Speaker' };
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const NA_QUOTES = [
+  'One day at a time.',
+  'It works if you work it.',
+  'Progress, not perfection.',
+  'You are not alone.',
+  'Keep coming back.',
+  'Easy does it, but do it.',
+  'You didn\'t come this far to only come this far.',
+  'Stay strong — one more day clean.',
+  'Every day sober is a victory.',
+  'Recovery is a journey, not a destination.',
+  'Courage to change the things I can.',
+  'Your worst day in recovery beats your best day in addiction.',
+  'The miracle is in the moment — right now.',
+  'Keep your side of the street clean.',
+  'It gets easier, one day at a time.',
+];
 
 // Files state
 let currentFolderId = null;
@@ -454,47 +471,132 @@ async function loadNAData() {
 function renderRecoveryToday() {
   const card = document.getElementById('recoveryTodayCard');
   if (!card) return;
-  const hasData = naMeetings.length || naDailyTasks.length;
+  const hasData = naMeetings.length || naDailyTasks.length || naSponsor;
   card.style.display = hasData ? '' : 'none';
   if (!hasData) return;
 
   const todayDow = new Date().getDay();
-
-  // Today's meetings
-  const mtgEl = document.getElementById('rtMeetingsList');
   const todayMtgs = naMeetings.filter(m => m.dayOfWeek === todayDow);
-  if (todayMtgs.length) {
-    mtgEl.innerHTML = todayMtgs.map(m => `
-      <div class="rt-meeting-row">
-        <span class="rt-meeting-dot" style="background:${m.color}"></span>
-        <span class="rt-meeting-time">${fmtMtgTime(m.meetingTime)}</span>
-        <span style="flex:1;font-weight:500">${escHtml(m.name)}</span>
-        <button style="font-size:11px;padding:2px 6px;border-radius:5px;border:1px solid ${m.attendedToday ? 'var(--success)' : 'var(--border)'};background:${m.attendedToday ? 'var(--success)' : 'transparent'};color:${m.attendedToday ? '#fff' : 'var(--text-muted)'};cursor:pointer"
-          onclick="rtToggleAttend('${m.id}',${!m.attendedToday})">${m.attendedToday ? '✓' : '○'}</button>
-      </div>`).join('');
-  } else {
-    mtgEl.innerHTML = '<p style="font-size:13px;color:var(--text-muted)">No meetings scheduled today.</p>';
-  }
+  const nextMtg = [...naMeetings]
+    .filter(m => m.dayOfWeek !== todayDow)
+    .sort((a, b) => ((a.dayOfWeek - todayDow + 7) % 7) - ((b.dayOfWeek - todayDow + 7) % 7))[0];
 
-  // Daily tasks (show first 5)
-  const taskEl = document.getElementById('rtTasksList');
-  const done = naDailyTasks.filter(t => t.completedToday).length;
-  const total = naDailyTasks.length;
-  const pct = total ? Math.round((done / total) * 100) : 0;
-  taskEl.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <div class="rt-prog-bar-wrap" style="flex:1"><div class="rt-prog-bar" style="width:${pct}%"></div></div>
-      <span style="font-size:12px;color:var(--text-muted);white-space:nowrap">${done}/${total}</span>
+  const doneTasks = naDailyTasks.filter(t => t.completedToday).length;
+  const totalTasks = naDailyTasks.length;
+  const taskPct = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0;
+
+  const currentStep = naSponsor?.currentStep || 1;
+  const completedSteps = naSteps.filter(s => s.completedAt).length;
+  const stepPct = Math.round((completedSteps / 12) * 100);
+
+  const COL_GREEN = 'var(--success)', COL_YELLOW = '#f59e0b', COL_RED = 'var(--danger)', COL_GRAY = 'var(--text-muted)';
+  const statusDot = c => `<span class="na-status-dot" style="background:${c}"></span>`;
+
+  const mtgStatus  = todayMtgs.length ? (todayMtgs.some(m => m.attendedToday) ? COL_GREEN : COL_YELLOW) : COL_GRAY;
+  const spStatus   = naSponsor?.name ? COL_GREEN : COL_YELLOW;
+  const stepStatus = completedSteps > 0 ? COL_GREEN : COL_YELLOW;
+  const taskStatus = totalTasks === 0 ? COL_GRAY : taskPct === 100 ? COL_GREEN : taskPct > 0 ? COL_YELLOW : COL_RED;
+
+  // Recovery score
+  let score = 0;
+  if (todayMtgs.length === 0 || todayMtgs.some(m => m.attendedToday)) score += 30;
+  score += Math.round(taskPct * 0.5);
+  if (completedSteps > 0) score += 10;
+  if (currentStep > 1) score += 10;
+  const scoreColor = score >= 80 ? COL_GREEN : score >= 50 ? COL_YELLOW : COL_RED;
+
+  // Motivational quote — deterministic by day of year
+  const now = new Date();
+  const doy = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  const quote = NA_QUOTES[doy % NA_QUOTES.length];
+
+  const quotEl = document.getElementById('naMotivationalQuote');
+  if (quotEl) quotEl.innerHTML = `<span class="na-quote-icon">💬</span>${escHtml(quote)}`;
+
+  const badge = document.getElementById('naScoreBadge');
+  if (badge) badge.innerHTML = `<span class="recovery-score-pill" style="background:${scoreColor}20;color:${scoreColor};border-color:${scoreColor}40">${score}/100</span>`;
+
+  const grid = document.getElementById('naPreviewGrid');
+  if (!grid) return;
+  grid.innerHTML = `
+    <div class="na-preview-card">
+      <div class="na-pc-header">
+        ${statusDot(mtgStatus)}<span class="na-pc-icon">🤝</span>
+        <span class="na-pc-title">Meetings</span>
+        <button class="na-pc-link" onclick="switchTab('meetings')">View All →</button>
+      </div>
+      ${todayMtgs.length ? todayMtgs.map(m => `
+        <div class="na-pc-row">
+          <span class="rt-meeting-dot" style="background:${m.color}"></span>
+          <span class="na-pc-time">${fmtMtgTime(m.meetingTime)}</span>
+          <span class="na-pc-name">${escHtml(m.name)}</span>
+          <button class="na-pc-attend ${m.attendedToday ? 'checked' : ''}"
+            onclick="rtToggleAttend('${m.id}',${!m.attendedToday})">${m.attendedToday ? '✓' : '○'}</button>
+        </div>`).join('')
+        : `<p class="na-pc-empty">No meetings today.</p>`}
+      ${nextMtg ? `<div class="na-pc-next">Next: <strong>${escHtml(nextMtg.name)}</strong> — ${DAY_NAMES[nextMtg.dayOfWeek]}</div>` : ''}
     </div>
-    <div class="rt-tasks-mini">
-      ${naDailyTasks.slice(0, 5).map(t => `
-        <div class="rt-task-row">
+
+    <div class="na-preview-card">
+      <div class="na-pc-header">
+        ${statusDot(spStatus)}<span class="na-pc-icon">👤</span>
+        <span class="na-pc-title">Sponsor</span>
+        <button class="na-pc-link" onclick="switchTab('sponsor')">Open Page →</button>
+      </div>
+      ${naSponsor?.name ? `
+        <div class="na-pc-sponsor-name">${escHtml(naSponsor.name)}</div>
+        ${naSponsor.yearsClean ? `<div class="na-pc-sponsor-meta">${escHtml(naSponsor.yearsClean)} yrs clean</div>` : ''}
+        <div class="na-pc-sponsor-meta">Working Step ${currentStep}</div>
+        <div class="na-pc-contact-row">
+          ${naSponsor.phone ? `<a class="na-pc-contact" href="tel:${encodeURIComponent(naSponsor.phone)}">📞 Call</a>
+          <a class="na-pc-contact" href="sms:${encodeURIComponent(naSponsor.phone)}">💬 Text</a>` : ''}
+        </div>
+      ` : `<p class="na-pc-empty">No sponsor added yet.</p>
+        <button class="na-pc-add" onclick="switchTab('sponsor')">+ Add Sponsor</button>`}
+    </div>
+
+    <div class="na-preview-card">
+      <div class="na-pc-header">
+        ${statusDot(stepStatus)}<span class="na-pc-icon">📖</span>
+        <span class="na-pc-title">12 Steps</span>
+        <button class="na-pc-link" onclick="switchTab('sponsor')">View Work →</button>
+      </div>
+      <div class="na-pc-step-num">Step ${currentStep} <span class="na-pc-step-of">of 12</span></div>
+      <div class="na-pc-bar-wrap"><div class="na-pc-bar-fill" style="width:${stepPct}%"></div></div>
+      <div class="na-pc-bar-label">${completedSteps} of 12 complete</div>
+    </div>
+
+    <div class="na-preview-card">
+      <div class="na-pc-header">
+        ${statusDot(taskStatus)}<span class="na-pc-icon">✅</span>
+        <span class="na-pc-title">Daily Tasks</span>
+        <button class="na-pc-link" onclick="switchTab('sponsor')">All Tasks →</button>
+      </div>
+      <div class="na-pc-task-summary">${doneTasks}/${totalTasks} done today</div>
+      <div class="na-pc-bar-wrap"><div class="na-pc-bar-fill" style="width:${taskPct}%;background:${taskStatus}"></div></div>
+      ${naDailyTasks.slice(0, 3).map(t => `
+        <div class="na-pc-row" style="margin-top:6px">
           <input type="checkbox" class="rt-task-cb" ${t.completedToday ? 'checked' : ''}
             onchange="rtToggleTask('${t.id}', this.checked)">
-          <span style="${t.completedToday ? 'text-decoration:line-through;color:var(--text-muted)' : ''}">${escHtml(t.taskText)}</span>
+          <span class="na-pc-name ${t.completedToday ? 'na-pc-done' : ''}">${escHtml(t.taskText)}</span>
         </div>`).join('')}
-      ${total > 5 ? `<button class="btn btn-ghost" style="font-size:12px;padding:2px 0" onclick="switchTab('sponsor')">+${total - 5} more →</button>` : ''}
-    </div>`;
+      ${totalTasks > 3 ? `<button class="na-pc-add" style="margin-top:6px" onclick="switchTab('sponsor')">+${totalTasks - 3} more →</button>` : ''}
+    </div>
+  `;
+
+  const scoreEl = document.getElementById('naScoreSection');
+  if (scoreEl) scoreEl.innerHTML = `
+    <div class="na-score-row">
+      <span class="na-score-label">Today's Recovery Score</span>
+      <span class="na-score-val" style="color:${scoreColor}">${score}/100</span>
+    </div>
+    <div class="na-score-track"><div class="na-score-fill" style="width:${score}%;background:${scoreColor}"></div></div>
+    <div class="na-score-breakdown">
+      <span class="na-score-item ${todayMtgs.length === 0 || todayMtgs.some(m => m.attendedToday) ? 'good' : 'pending'}">🤝 Meetings</span>
+      <span class="na-score-item ${taskPct === 100 ? 'good' : taskPct > 0 ? 'pending' : 'miss'}">✅ Tasks ${taskPct}%</span>
+      <span class="na-score-item ${completedSteps > 0 ? 'good' : 'pending'}">📖 Steps ${completedSteps}/12</span>
+    </div>
+  `;
 }
 
 async function rtToggleAttend(id, attended) {

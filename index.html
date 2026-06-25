@@ -156,22 +156,15 @@
         <div id="sobrietyContent"></div>
       </div>
 
-      <!-- Recovery Today Widget -->
+      <!-- NA Recovery Dashboard Widget -->
       <div class="card" id="recoveryTodayCard" style="display:none">
         <div class="card-header">
-          <h3>💙 Recovery Today</h3>
-          <button class="btn btn-ghost" onclick="switchTab('meetings')" style="font-size:12px">All Meetings →</button>
+          <h3>💙 NA Recovery</h3>
+          <span class="recovery-score-badge" id="naScoreBadge"></span>
         </div>
-        <div class="recovery-today-grid">
-          <div>
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">Today's Meetings</div>
-            <div id="rtMeetingsList"></div>
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">Daily Tasks</div>
-            <div id="rtTasksList"></div>
-          </div>
-        </div>
+        <div class="na-quote" id="naMotivationalQuote"></div>
+        <div class="na-preview-grid" id="naPreviewGrid"></div>
+        <div class="recovery-score-section" id="naScoreSection"></div>
       </div>
 
       <div class="card">
