@@ -138,6 +138,18 @@
         </div>
       </div>
 
+      <!-- Sobriety Counter -->
+      <div class="card sobriety-card">
+        <div class="card-header">
+          <h3>💙 Recovery Counter</h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px" onclick="openSobrietyModal()">✏️ Set Date</button>
+            <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;color:var(--danger)" onclick="resetSobrietyCounter()">Reset</button>
+          </div>
+        </div>
+        <div id="sobrietyContent"></div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <h3>Activity Heatmap</h3>
@@ -555,6 +567,30 @@
         <button class="btn btn-primary" onclick="addEntryForDate()">📓 Add Journal Entry for this date</button>
         <button class="btn btn-secondary" onclick="addEventForDate()">📅 Add Calendar Event</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sobriety Date Modal -->
+<div class="modal-overlay" id="sobrietyModal" onclick="closeSobrietyModal(event)">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3>💙 Set Your Clean Date</h3>
+      <button class="modal-close" onclick="closeSobrietyModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:14px;color:var(--text-muted);margin-bottom:18px;line-height:1.6">
+        Enter the date you became clean and sober. Your counter will calculate exactly how long you've been in recovery.
+      </p>
+      <div class="form-group">
+        <label>Your Clean Date</label>
+        <input type="date" id="sobrietyDateInput" oninput="updateSobrietyPreview()">
+      </div>
+      <div id="sobrietyPreview"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveSobrietyDate()">💙 Save My Clean Date</button>
+      <button class="btn btn-ghost" onclick="closeSobrietyModal()">Cancel</button>
     </div>
   </div>
 </div>

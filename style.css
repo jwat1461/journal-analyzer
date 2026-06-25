@@ -12,6 +12,7 @@
   --warning: #f59e0b;
   --danger: #ef4444;
   --sidebar-w: 220px;
+  --accent: #6366f1;
 }
 
 [data-theme="light"] {
@@ -22,6 +23,24 @@
   --text: #1e293b;
   --text-muted: #64748b;
   --primary-dim: rgba(99,102,241,0.08);
+  --accent: #6366f1;
+}
+
+/* ── Narcotics Anonymous / Recovery Theme ─────────────────────────────────── */
+[data-theme="na"] {
+  --bg: #06101e;
+  --surface: #0c1928;
+  --surface2: #102035;
+  --border: #183050;
+  --text: #ddeaff;
+  --text-muted: #6b90bf;
+  --primary: #1d5fb8;
+  --primary-hover: #1a52a5;
+  --primary-dim: rgba(29,95,184,0.14);
+  --accent: #e8a020;
+  --success: #22c55e;
+  --warning: #f5a623;
+  --danger: #ef4444;
 }
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -248,6 +267,12 @@ body {
 [data-theme="light"] .heatmap-cell.level-2 { background: #40c463; }
 [data-theme="light"] .heatmap-cell.level-3 { background: #30a14e; }
 [data-theme="light"] .heatmap-cell.level-4 { background: #216e39; }
+
+[data-theme="na"] .heatmap-cell.level-0 { background: #0c1f38; }
+[data-theme="na"] .heatmap-cell.level-1 { background: #153569; }
+[data-theme="na"] .heatmap-cell.level-2 { background: #1d5fb8; }
+[data-theme="na"] .heatmap-cell.level-3 { background: #2979e8; }
+[data-theme="na"] .heatmap-cell.level-4 { background: #5b9ef5; }
 
 .heatmap-legend {
   display: flex;
@@ -1041,3 +1066,100 @@ textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
   font-size: 14px; font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
+/* ── Sobriety Counter ─────────────────────────────────────────────────────── */
+.sobriety-card {
+  border-color: rgba(99,102,241,0.4);
+  background: linear-gradient(135deg, var(--surface) 0%, var(--primary-dim) 100%);
+}
+[data-theme="na"] .sobriety-card {
+  border-color: rgba(232,160,32,0.45);
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(232,160,32,0.08) 100%);
+}
+
+.sob-units {
+  display: flex;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.sob-unit {
+  flex: 1;
+  text-align: center;
+  padding: 18px 8px 14px;
+  border-right: 1px solid var(--border);
+}
+.sob-unit:last-child { border-right: none; }
+
+.sob-unit-val {
+  font-size: 46px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--primary);
+  letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
+}
+[data-theme="na"] .sob-unit-val { color: var(--accent); }
+
+.sob-unit-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 6px;
+}
+
+.sob-total {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.sob-total strong { color: var(--text); font-size: 20px; }
+
+.sob-ticker {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+  margin-bottom: 16px;
+}
+[data-theme="na"] .sob-ticker { color: var(--accent); }
+
+.sob-quote {
+  text-align: center;
+  font-size: 14px;
+  font-style: italic;
+  color: var(--text-muted);
+  padding: 12px 24px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+  line-height: 1.65;
+}
+[data-theme="na"] .sob-quote {
+  color: var(--accent);
+  border-color: rgba(232,160,32,0.25);
+}
+
+.sob-clean-date {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.sob-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+
+/* NA sidebar accent */
+[data-theme="na"] .nav-item.active { background: #1d4ed8; }
+[data-theme="na"] .brand-sub { color: var(--accent); }
+[data-theme="na"] .stat-card.streak { border-color: rgba(232,160,32,0.4); }
+[data-theme="na"] .entry-date { color: var(--accent); }
+[data-theme="na"] .pattern-item { border-left-color: var(--accent); }
+[data-theme="na"] .ai-card { border-color: rgba(29,95,184,0.4); }

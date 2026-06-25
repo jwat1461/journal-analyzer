@@ -21,6 +21,10 @@ let editingEventId  = null;
 let selectedEventColor = '#3b82f6';
 let selectedCalDate = null;
 
+// Sobriety counter
+let sobrietyDate   = null;
+let sobrietyTicker = null;
+
 // Files state
 let currentFolderId = null;
 let folderStack     = [];
@@ -240,6 +244,7 @@ async function loadData() {
     habits = await Promise.all(defaults.map(h => api('POST', '/api/habits', h)));
   }
 
+  sobrietyDate = localStorage.getItem('ja_sobriety_date') || null;
   apiKey = localStorage.getItem('ja_apikey') || '';
   const claudeAvailable = apiKey || serverClaudeReady;
   if (apiKey) document.getElementById('apiKeyInput').value = apiKey;
@@ -258,6 +263,7 @@ async function loadData() {
 function renderAll() {
   renderStats();
   renderHeatmap();
+  renderSobrietyCounter();
   renderDashCalPreview();
   renderRecentEntries();
   renderAllEntries();
@@ -294,7 +300,9 @@ function setupTheme() {
   applyTheme(saved);
 
   document.getElementById('themeToggle').addEventListener('click', () => {
-    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    const order = ['dark', 'light', 'na'];
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = order[(order.indexOf(current) + 1) % order.length];
     applyTheme(next);
     localStorage.setItem('ja_theme', next);
     setTimeout(renderCharts, 80);
@@ -303,7 +311,10 @@ function setupTheme() {
 
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
-  document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+  const icons = { dark: '☀️', light: '🌙', na: '💙' };
+  const btn = document.getElementById('themeToggle');
+  btn.textContent = icons[theme] || '☀️';
+  btn.title = theme === 'na' ? 'NA Recovery Theme — click for dark' : 'Toggle theme';
 }
 
 // ── Dashboard Calendar Preview ────────────────────────────────────────────────
@@ -361,6 +372,190 @@ function renderDashCalPreview() {
           <span class="dash-ev-title">${escHtml(ev.title)}</span>
         </div>`).join('')}
     </div>`).join('');
+}
+
+// ── Sobriety Counter ──────────────────────────────────────────────────────────
+function calcSobriety() {
+  if (!sobrietyDate) return null;
+  const start = new Date(sobrietyDate + 'T00:00:00');
+  const now = new Date();
+  const totalMs = now - start;
+  if (totalMs < 0) return null;
+  const totalDays = Math.floor(totalMs / 864e5);
+  const years  = Math.floor(totalDays / 365);
+  const months = Math.floor((totalDays % 365) / 30);
+  const days   = totalDays % 30;
+  const hours   = Math.floor((totalMs % 864e5) / 3600e3);
+  const minutes = Math.floor((totalMs % 3600e3) / 60e3);
+  const seconds = Math.floor((totalMs % 60e3) / 1000);
+  return { totalDays, years, months, days, hours, minutes, seconds };
+}
+
+function getSobrietyQuote(totalDays) {
+  if (totalDays < 1)   return 'Every hour counts. You are doing something remarkable today.';
+  if (totalDays < 7)   return 'One day at a time. You\'re already doing it.';
+  if (totalDays < 30)  return 'Keep coming back — it works if you work it.';
+  if (totalDays < 90)  return 'We do recover. And so are you, one day at a time.';
+  if (totalDays < 180) return 'Just for today, I will try to live through this day only.';
+  if (totalDays < 365) return 'The promises are unfolding. Keep coming back.';
+  if (totalDays < 730) return 'Your recovery is proof that miracles happen every day.';
+  return 'You are living proof that recovery is real. Keep going — more will be revealed.';
+}
+
+function renderSobrietyCounter() {
+  const el = document.getElementById('sobrietyContent');
+  if (!el) return;
+
+  if (!sobrietyDate) {
+    el.innerHTML = `
+      <div style="text-align:center;padding:20px 0 8px">
+        <div style="font-size:40px;margin-bottom:10px">💙</div>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;line-height:1.6">
+          Enter your clean date to start tracking your sobriety.<br>
+          See your total days, months, and years — live.
+        </p>
+        <button class="btn btn-primary" onclick="openSobrietyModal()">Set My Clean Date</button>
+      </div>`;
+    if (sobrietyTicker) { clearInterval(sobrietyTicker); sobrietyTicker = null; }
+    return;
+  }
+
+  const s = calcSobriety();
+  if (!s) {
+    el.innerHTML = '<p class="muted">Clean date appears to be in the future — please check the date.</p>';
+    return;
+  }
+
+  const fmt = new Date(sobrietyDate + 'T00:00:00')
+    .toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  el.innerHTML = `
+    <div class="sob-units">
+      <div class="sob-unit">
+        <div class="sob-unit-val" id="sobYears">${s.years}</div>
+        <div class="sob-unit-label">Years</div>
+      </div>
+      <div class="sob-unit">
+        <div class="sob-unit-val" id="sobMonths">${s.months}</div>
+        <div class="sob-unit-label">Months</div>
+      </div>
+      <div class="sob-unit">
+        <div class="sob-unit-val" id="sobDays">${s.days}</div>
+        <div class="sob-unit-label">Days</div>
+      </div>
+    </div>
+    <div class="sob-total"><strong id="sobTotal">${s.totalDays}</strong> total days clean &amp; sober</div>
+    <div class="sob-ticker" id="sobTicker">${String(s.hours).padStart(2,'0')}:${String(s.minutes).padStart(2,'0')}:${String(s.seconds).padStart(2,'0')} elapsed today</div>
+    <div class="sob-quote">"${escHtml(getSobrietyQuote(s.totalDays))}"</div>
+    <div class="sob-clean-date">Clean since ${fmt}</div>
+    <div class="sob-actions">
+      <button class="btn btn-secondary" onclick="copySobrietyText()">📋 Copy to Journal</button>
+    </div>`;
+
+  startSobrietyTicker();
+}
+
+function startSobrietyTicker() {
+  if (sobrietyTicker) clearInterval(sobrietyTicker);
+  sobrietyTicker = setInterval(() => {
+    const s = calcSobriety();
+    if (!s) return;
+    const ticker  = document.getElementById('sobTicker');
+    const total   = document.getElementById('sobTotal');
+    const years   = document.getElementById('sobYears');
+    const months  = document.getElementById('sobMonths');
+    const days    = document.getElementById('sobDays');
+    if (ticker)  ticker.textContent  = `${String(s.hours).padStart(2,'0')}:${String(s.minutes).padStart(2,'0')}:${String(s.seconds).padStart(2,'0')} elapsed today`;
+    if (total)   total.textContent   = s.totalDays;
+    if (years)   years.textContent   = s.years;
+    if (months)  months.textContent  = s.months;
+    if (days)    days.textContent    = s.days;
+  }, 1000);
+}
+
+function openSobrietyModal() {
+  document.getElementById('sobrietyDateInput').value = sobrietyDate || '';
+  updateSobrietyPreview();
+  document.getElementById('sobrietyModal').classList.add('open');
+  setTimeout(() => document.getElementById('sobrietyDateInput').focus(), 50);
+}
+
+function closeSobrietyModal(e) {
+  if (e && e.target !== document.getElementById('sobrietyModal')) return;
+  document.getElementById('sobrietyModal').classList.remove('open');
+}
+
+function updateSobrietyPreview() {
+  const val     = document.getElementById('sobrietyDateInput').value;
+  const preview = document.getElementById('sobrietyPreview');
+  if (!val) { preview.innerHTML = ''; return; }
+  const start = new Date(val + 'T00:00:00');
+  if (start > new Date()) {
+    preview.innerHTML = '<p style="color:var(--danger);font-size:13px;margin-top:6px">Date cannot be in the future.</p>';
+    return;
+  }
+  const totalDays = Math.floor((new Date() - start) / 864e5);
+  const years  = Math.floor(totalDays / 365);
+  const months = Math.floor((totalDays % 365) / 30);
+  const days   = totalDays % 30;
+  const parts  = [];
+  if (years)  parts.push(years  + ' year'  + (years  !== 1 ? 's' : ''));
+  if (months) parts.push(months + ' month' + (months !== 1 ? 's' : ''));
+  parts.push(days + ' day' + (days !== 1 ? 's' : ''));
+  preview.innerHTML = `
+    <div style="background:var(--primary-dim);border:1px solid var(--primary);border-radius:8px;padding:14px;text-align:center;margin-top:8px">
+      <div style="font-size:36px;font-weight:800;color:var(--primary);letter-spacing:-1px">${totalDays}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:2px">total days · ${parts.join(', ')}</div>
+      <div style="font-style:italic;color:var(--text-muted);font-size:13px;margin-top:8px">"${getSobrietyQuote(totalDays)}"</div>
+    </div>`;
+}
+
+function saveSobrietyDate() {
+  const val = document.getElementById('sobrietyDateInput').value;
+  if (!val) { showToast('Please select a date', 'error'); return; }
+  if (new Date(val + 'T00:00:00') > new Date()) { showToast('Date cannot be in the future', 'error'); return; }
+  sobrietyDate = val;
+  localStorage.setItem('ja_sobriety_date', val);
+  closeSobrietyModal();
+  renderSobrietyCounter();
+  showToast('Clean date saved! 💙', 'success');
+}
+
+function resetSobrietyCounter() {
+  if (!confirm('Reset your sobriety counter? This will clear your clean date.')) return;
+  sobrietyDate = null;
+  localStorage.removeItem('ja_sobriety_date');
+  if (sobrietyTicker) { clearInterval(sobrietyTicker); sobrietyTicker = null; }
+  renderSobrietyCounter();
+  showToast('Counter reset', 'success');
+}
+
+function copySobrietyText() {
+  const s = calcSobriety();
+  if (!s) return;
+  const cleanFmt = new Date(sobrietyDate + 'T00:00:00')
+    .toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+  const todayFmt = new Date()
+    .toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  const parts = [];
+  if (s.years)  parts.push(s.years  + ' year'  + (s.years  !== 1 ? 's' : ''));
+  if (s.months) parts.push(s.months + ' month' + (s.months !== 1 ? 's' : ''));
+  parts.push(s.days + ' day' + (s.days !== 1 ? 's' : ''));
+
+  const text =
+`Day ${s.totalDays} of My Recovery — ${todayFmt}
+${'─'.repeat(42)}
+Clean since:  ${cleanFmt}
+Time in recovery:  ${parts.join(', ')}
+Total days clean & sober:  ${s.totalDays}
+${'─'.repeat(42)}
+"${getSobrietyQuote(s.totalDays)}"
+
+Just for today, I choose recovery.`;
+
+  navigator.clipboard.writeText(text)
+    .then(() => showToast('Copied to clipboard! 📋', 'success'))
+    .catch(() => showToast('Copy failed — try again', 'error'));
 }
 
 function renderStats() {
