@@ -1163,3 +1163,196 @@ textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
 [data-theme="na"] .entry-date { color: var(--accent); }
 [data-theme="na"] .pattern-item { border-left-color: var(--accent); }
 [data-theme="na"] .ai-card { border-color: rgba(29,95,184,0.4); }
+
+/* ── Meetings Tab ─────────────────────────────────────────────────────────── */
+.meetings-stats-bar {
+  display: flex; gap: 14px; margin-bottom: 18px; flex-wrap: wrap;
+}
+.mtg-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 18px;
+  display: flex; align-items: center; gap: 10px;
+}
+.mtg-stat-val { font-size: 22px; font-weight: 700; color: var(--primary); }
+.mtg-stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+
+.meetings-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  overflow-x: auto;
+}
+.mtg-day-col {
+  min-width: 120px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.mtg-day-col.today { border-color: var(--primary); }
+.mtg-day-header {
+  padding: 8px 10px;
+  background: var(--surface2);
+  font-size: 12px; font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.mtg-day-col.today .mtg-day-header { color: var(--primary); background: var(--primary-dim); }
+.mtg-day-date { font-size: 10px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
+
+.mtg-cards-wrap { padding: 6px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.mtg-empty-col { text-align: center; padding: 16px 6px; font-size: 12px; color: var(--text-muted); opacity: .5; }
+
+.mtg-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: 7px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background .13s;
+  font-size: 12px;
+}
+.mtg-card:hover { background: var(--border); }
+.mtg-card-time { font-weight: 600; color: var(--text); margin-bottom: 2px; font-size: 11px; }
+.mtg-card-name { font-weight: 600; font-size: 12px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mtg-card-loc  { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
+
+.mtg-commit-badge {
+  display: inline-block;
+  font-size: 10px; font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--primary-dim);
+  color: var(--primary);
+  margin-bottom: 5px;
+}
+.mtg-attend-btn {
+  width: 100%;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10px; font-weight: 600;
+  cursor: pointer;
+  transition: all .13s;
+}
+.mtg-attend-btn:hover { border-color: var(--success); color: var(--success); }
+.mtg-attend-btn.attended { background: var(--success); color: #fff; border-color: var(--success); }
+
+.mtg-add-btn {
+  width: 100%; margin-top: 4px;
+  padding: 6px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px; cursor: pointer;
+  transition: border-color .13s, color .13s;
+}
+.mtg-add-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ── Sponsor / Steps / Tasks Tab ──────────────────────────────────────────── */
+.sponsor-profile-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 18px;
+  display: flex; align-items: flex-start; gap: 16px;
+}
+.sponsor-avatar {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--primary-dim);
+  border: 2px solid var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; flex-shrink: 0;
+}
+.sponsor-info { flex: 1; }
+.sponsor-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.sponsor-meta { font-size: 13px; color: var(--text-muted); line-height: 1.8; }
+.sponsor-meta a { color: var(--primary); text-decoration: none; }
+.sponsor-meta a:hover { text-decoration: underline; }
+.sponsor-empty { text-align: center; padding: 28px 0; color: var(--text-muted); font-size: 14px; }
+
+/* 12-Step grid */
+.steps-section { margin-bottom: 22px; }
+.steps-progress-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.steps-progress-bar-wrap { flex: 1; background: var(--surface2); border-radius: 6px; height: 8px; overflow: hidden; border: 1px solid var(--border); }
+.steps-progress-bar-fill { height: 100%; background: var(--primary); border-radius: 6px; transition: width .3s; }
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+.step-box {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer;
+  transition: all .15s;
+  position: relative;
+}
+.step-box:hover { border-color: var(--primary); color: var(--primary); transform: scale(1.05); }
+.step-box.completed { background: var(--primary); color: #fff; border-color: var(--primary); }
+.step-box.current { border-color: var(--accent); color: var(--accent); border-width: 2px; }
+[data-theme="na"] .step-box.completed { background: var(--primary); }
+
+.step-detail-panel {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 16px;
+  margin-top: 12px;
+}
+.step-detail-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.step-detail-desc  { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
+
+/* Daily Tasks */
+.tasks-progress-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.tasks-prog-wrap { flex: 1; background: var(--surface2); border-radius: 6px; height: 10px; overflow: hidden; border: 1px solid var(--border); }
+.tasks-prog-fill { height: 100%; background: var(--success); border-radius: 6px; transition: width .3s; }
+.tasks-prog-label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+
+.dtask-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.dtask-item {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: background .12s;
+}
+.dtask-item.done { opacity: .65; }
+.dtask-item.done .dtask-text { text-decoration: line-through; color: var(--text-muted); }
+.dtask-cb { width: 16px; height: 16px; accent-color: var(--success); cursor: pointer; flex-shrink: 0; }
+.dtask-text { flex: 1; font-size: 14px; }
+.dtask-del { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 15px; padding: 0 4px; opacity: .5; }
+.dtask-del:hover { color: var(--danger); opacity: 1; }
+.dtask-preset-badge { font-size: 10px; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1px 6px; flex-shrink: 0; }
+
+/* ── Recovery Today Dashboard Card ───────────────────────────────────────── */
+.recovery-today-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 680px) { .recovery-today-grid { grid-template-columns: 1fr; } }
+
+.rt-meetings-list { display: flex; flex-direction: column; gap: 6px; }
+.rt-meeting-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; padding: 6px 8px;
+  background: var(--surface2); border-radius: 7px;
+}
+.rt-meeting-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.rt-meeting-time { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.rt-tasks-mini { display: flex; flex-direction: column; gap: 8px; }
+.rt-task-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.rt-task-cb { width: 15px; height: 15px; accent-color: var(--success); cursor: pointer; }
+.rt-prog-bar-wrap { background: var(--surface2); border-radius: 6px; height: 8px; overflow: hidden; margin-top: 4px; }
+.rt-prog-bar { height: 100%; background: var(--success); border-radius: 6px; transition: width .3s; }

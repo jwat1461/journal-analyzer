@@ -25,6 +25,47 @@ let selectedCalDate = null;
 let sobrietyDate   = null;
 let sobrietyTicker = null;
 
+// NA Recovery data
+let naMeetings        = [];
+let naAttendanceDates = [];  // distinct attended dates (YYYY-MM-DD)
+let naSponsor         = null;
+let naSteps           = [];
+let naDailyTasks      = [];
+let editingMeetingId  = null;
+let selectedMtgColor  = '#6366f1';
+let openStepNumber    = null;
+
+const NA_STEP_TITLES = [
+  'Powerless & Unmanageable',
+  'Power Greater Than Ourselves',
+  'Decision to Turn Our Will Over',
+  'Fearless Moral Inventory',
+  'Admitting the Exact Nature of Our Wrongs',
+  'Ready to Have Defects Removed',
+  'Humbly Asked to Remove Our Shortcomings',
+  'List of All Persons We Had Harmed',
+  'Making Direct Amends',
+  'Continuing Personal Inventory',
+  'Prayer, Meditation & Conscious Contact',
+  'Carrying the Message to Addicts',
+];
+const NA_STEP_DESC = [
+  'We admitted that we were powerless over our addiction — that our lives had become unmanageable.',
+  'We came to believe that a Power greater than ourselves could restore us to sanity.',
+  'We made a decision to turn our will and our lives over to the care of God as we understood Him.',
+  'We made a searching and fearless moral inventory of ourselves.',
+  'We admitted to God, to ourselves, and to another human being the exact nature of our wrongs.',
+  'We were entirely ready to have God remove all these defects of character.',
+  'We humbly asked Him to remove our shortcomings.',
+  'We made a list of all persons we had harmed, and became willing to make amends to them all.',
+  'We made direct amends to such people wherever possible, except when to do so would injure them or others.',
+  'We continued to take personal inventory and when we were wrong, promptly admitted it.',
+  'We sought through prayer and meditation to improve our conscious contact with God as we understood Him.',
+  'Having had a spiritual awakening as a result of these steps, we tried to carry this message to addicts, and to practice these principles in all our affairs.',
+];
+const MTG_COMMIT_LABELS = { member:'Member', chair:'🎙️ Chair', read:'📖 Read', greet:'🤝 Greet', share:'💬 Share', speaker:'🎤 Speaker' };
+const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
 // Files state
 let currentFolderId = null;
 let folderStack     = [];
@@ -244,7 +285,7 @@ async function loadData() {
     habits = await Promise.all(defaults.map(h => api('POST', '/api/habits', h)));
   }
 
-  sobrietyDate = localStorage.getItem('ja_sobriety_date') || null;
+  await loadNAData();
   apiKey = localStorage.getItem('ja_apikey') || '';
   const claudeAvailable = apiKey || serverClaudeReady;
   if (apiKey) document.getElementById('apiKeyInput').value = apiKey;
@@ -264,6 +305,7 @@ function renderAll() {
   renderStats();
   renderHeatmap();
   renderSobrietyCounter();
+  renderRecoveryToday();
   renderDashCalPreview();
   renderRecentEntries();
   renderAllEntries();
@@ -291,6 +333,8 @@ function switchTab(tab) {
   if (tab === 'insights') setTimeout(renderCharts, 30);
   if (tab === 'habits')   renderHabitsTab();
   if (tab === 'calendar') loadCalendarEvents();
+  if (tab === 'meetings') renderMeetingsTab();
+  if (tab === 'sponsor')  renderSponsorTab();
   if (tab === 'files')    loadFiles();
 }
 
@@ -372,6 +416,505 @@ function renderDashCalPreview() {
           <span class="dash-ev-title">${escHtml(ev.title)}</span>
         </div>`).join('')}
     </div>`).join('');
+}
+
+// ── NA Data Loading ───────────────────────────────────────────────────────────
+async function loadNAData() {
+  try {
+    const [settings, mtgs, att, sponsor, steps, tasks] = await Promise.all([
+      api('GET', '/api/na/settings'),
+      api('GET', '/api/na/meetings'),
+      api('GET', '/api/na/meetings/attendance'),
+      api('GET', '/api/na/sponsor'),
+      api('GET', '/api/na/steps'),
+      api('GET', '/api/na/daily-tasks'),
+    ]);
+    sobrietyDate      = settings.sobriety_date || null;
+    naMeetings        = mtgs;
+    naAttendanceDates = att;
+    naSponsor         = sponsor;
+    naSteps           = steps;
+    naDailyTasks      = tasks;
+
+    // One-time migration: move sobriety date from localStorage → PostgreSQL
+    const legacyDate = localStorage.getItem('ja_sobriety_date');
+    if (legacyDate && !sobrietyDate) {
+      await api('PUT', '/api/na/settings', { sobriety_date: legacyDate });
+      sobrietyDate = legacyDate;
+      localStorage.removeItem('ja_sobriety_date');
+    }
+  } catch {
+    sobrietyDate = null;
+    naMeetings = []; naAttendanceDates = []; naSponsor = null;
+    naSteps = []; naDailyTasks = [];
+  }
+}
+
+// ── Recovery Today Dashboard Widget ──────────────────────────────────────────
+function renderRecoveryToday() {
+  const card = document.getElementById('recoveryTodayCard');
+  if (!card) return;
+  const hasData = naMeetings.length || naDailyTasks.length;
+  card.style.display = hasData ? '' : 'none';
+  if (!hasData) return;
+
+  const todayDow = new Date().getDay();
+
+  // Today's meetings
+  const mtgEl = document.getElementById('rtMeetingsList');
+  const todayMtgs = naMeetings.filter(m => m.dayOfWeek === todayDow);
+  if (todayMtgs.length) {
+    mtgEl.innerHTML = todayMtgs.map(m => `
+      <div class="rt-meeting-row">
+        <span class="rt-meeting-dot" style="background:${m.color}"></span>
+        <span class="rt-meeting-time">${fmtMtgTime(m.meetingTime)}</span>
+        <span style="flex:1;font-weight:500">${escHtml(m.name)}</span>
+        <button style="font-size:11px;padding:2px 6px;border-radius:5px;border:1px solid ${m.attendedToday ? 'var(--success)' : 'var(--border)'};background:${m.attendedToday ? 'var(--success)' : 'transparent'};color:${m.attendedToday ? '#fff' : 'var(--text-muted)'};cursor:pointer"
+          onclick="rtToggleAttend('${m.id}',${!m.attendedToday})">${m.attendedToday ? '✓' : '○'}</button>
+      </div>`).join('');
+  } else {
+    mtgEl.innerHTML = '<p style="font-size:13px;color:var(--text-muted)">No meetings scheduled today.</p>';
+  }
+
+  // Daily tasks (show first 5)
+  const taskEl = document.getElementById('rtTasksList');
+  const done = naDailyTasks.filter(t => t.completedToday).length;
+  const total = naDailyTasks.length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  taskEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div class="rt-prog-bar-wrap" style="flex:1"><div class="rt-prog-bar" style="width:${pct}%"></div></div>
+      <span style="font-size:12px;color:var(--text-muted);white-space:nowrap">${done}/${total}</span>
+    </div>
+    <div class="rt-tasks-mini">
+      ${naDailyTasks.slice(0, 5).map(t => `
+        <div class="rt-task-row">
+          <input type="checkbox" class="rt-task-cb" ${t.completedToday ? 'checked' : ''}
+            onchange="rtToggleTask('${t.id}', this.checked)">
+          <span style="${t.completedToday ? 'text-decoration:line-through;color:var(--text-muted)' : ''}">${escHtml(t.taskText)}</span>
+        </div>`).join('')}
+      ${total > 5 ? `<button class="btn btn-ghost" style="font-size:12px;padding:2px 0" onclick="switchTab('sponsor')">+${total - 5} more →</button>` : ''}
+    </div>`;
+}
+
+async function rtToggleAttend(id, attended) {
+  try {
+    await api('POST', `/api/na/meetings/${id}/attend`, { attended });
+    naMeetings = naMeetings.map(m => m.id === id ? { ...m, attendedToday: attended } : m);
+    renderRecoveryToday();
+    if (document.getElementById('tab-meetings').classList.contains('active')) renderMeetingsTab();
+  } catch (err) { showToast('Failed to update: ' + err.message, 'error'); }
+}
+
+async function rtToggleTask(id, completed) {
+  try {
+    await api('POST', `/api/na/daily-tasks/${id}/complete`, { completed });
+    naDailyTasks = naDailyTasks.map(t => t.id === id ? { ...t, completedToday: completed } : t);
+    renderRecoveryToday();
+    if (document.getElementById('tab-sponsor').classList.contains('active')) renderSponsorTab();
+  } catch (err) { showToast('Failed to update: ' + err.message, 'error'); }
+}
+
+// ── Meetings Tab ──────────────────────────────────────────────────────────────
+function renderMeetingsTab() {
+  renderMeetingsStats();
+  renderMeetingsWeek();
+}
+
+function renderMeetingsStats() {
+  const el = document.getElementById('meetingsStatsBar');
+  if (!el) return;
+
+  // Meeting streak (consecutive days with attendance)
+  const dateSet = new Set(naAttendanceDates);
+  const todayStr = dateStr(new Date());
+  let streak = 0;
+  let d = new Date();
+  while (dateSet.has(dateStr(d))) { streak++; d = new Date(d - 864e5); }
+
+  const thisWeekStart = new Date();
+  thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
+  const weekAttended = naAttendanceDates.filter(dt => dt >= dateStr(thisWeekStart)).length;
+
+  el.innerHTML = `
+    <div class="mtg-stat">
+      <div>
+        <div class="mtg-stat-val">🔥 ${streak}</div>
+        <div class="mtg-stat-label">Day Streak</div>
+      </div>
+    </div>
+    <div class="mtg-stat">
+      <div>
+        <div class="mtg-stat-val">${weekAttended}</div>
+        <div class="mtg-stat-label">Attended This Week</div>
+      </div>
+    </div>
+    <div class="mtg-stat">
+      <div>
+        <div class="mtg-stat-val">${naAttendanceDates.length}</div>
+        <div class="mtg-stat-label">Total Meetings Attended</div>
+      </div>
+    </div>`;
+}
+
+function renderMeetingsWeek() {
+  const grid = document.getElementById('meetingsWeekGrid');
+  if (!grid) return;
+
+  const today = new Date();
+  const todayDow = today.getDay();
+
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - todayDow);
+
+  grid.innerHTML = Array.from({ length: 7 }, (_, i) => {
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(weekStart.getDate() + i);
+    const isToday = i === todayDow;
+    const dateLabel = dayDate.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+    const dayMtgs = naMeetings.filter(m => m.dayOfWeek === i);
+
+    const cards = dayMtgs.map(m => {
+      const commitLabel = m.commitmentType !== 'member' ? MTG_COMMIT_LABELS[m.commitmentType] || '' : '';
+      return `
+        <div class="mtg-card" style="border-left-color:${m.color}"
+             onclick="openMeetingModal(${JSON.stringify(m).replace(/"/g,'&quot;')})">
+          ${m.meetingTime ? `<div class="mtg-card-time">${fmtMtgTime(m.meetingTime)}</div>` : ''}
+          <div class="mtg-card-name">${escHtml(m.name)}</div>
+          ${m.location ? `<div class="mtg-card-loc">📍 ${escHtml(m.location)}</div>` : ''}
+          ${commitLabel ? `<div class="mtg-commit-badge">${commitLabel}</div>` : ''}
+          <button class="mtg-attend-btn ${m.attendedToday ? 'attended' : ''}"
+            onclick="event.stopPropagation();toggleAttendance('${m.id}',${!m.attendedToday})">
+            ${m.attendedToday ? '✓ Attended' : 'Mark Attended'}
+          </button>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="mtg-day-col${isToday ? ' today' : ''}">
+        <div class="mtg-day-header">
+          ${DAY_NAMES[i].slice(0,3).toUpperCase()}
+          <div class="mtg-day-date">${dateLabel}</div>
+        </div>
+        <div class="mtg-cards-wrap">
+          ${cards || `<div class="mtg-empty-col">No meetings</div>`}
+          <button class="mtg-add-btn" onclick="openMeetingModal(null, ${i})">+ Add</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function fmtMtgTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function openMeetingModal(mtg, prefillDay) {
+  editingMeetingId = null;
+  selectedMtgColor = '#6366f1';
+  document.getElementById('meetingModalTitle').textContent = mtg ? 'Edit Meeting' : 'Add Meeting';
+  document.getElementById('mtgName').value = mtg ? mtg.name : '';
+  document.getElementById('mtgDay').value  = mtg ? mtg.dayOfWeek : (prefillDay ?? new Date().getDay());
+  document.getElementById('mtgTime').value = mtg ? (mtg.meetingTime || '') : '';
+  document.getElementById('mtgLocation').value  = mtg ? (mtg.location || '') : '';
+  document.getElementById('mtgCommit').value    = mtg ? (mtg.commitmentType || 'member') : 'member';
+  document.getElementById('mtgNotes').value     = mtg ? (mtg.notes || '') : '';
+  document.getElementById('mtgRecurring').checked = mtg ? mtg.recurring : true;
+  document.getElementById('mtgDeleteBtn').style.display = mtg ? '' : 'none';
+  if (mtg) { editingMeetingId = mtg.id; selectedMtgColor = mtg.color || '#6366f1'; }
+  document.querySelectorAll('#mtgColorSwatches .color-swatch').forEach(s => {
+    s.classList.toggle('selected', s.dataset.color === selectedMtgColor);
+  });
+  document.getElementById('meetingModal').classList.add('open');
+  setTimeout(() => document.getElementById('mtgName').focus(), 50);
+}
+
+function closeMeetingModal(e) {
+  if (e && e.target !== document.getElementById('meetingModal')) return;
+  document.getElementById('meetingModal').classList.remove('open');
+}
+
+function pickMtgColor(el) {
+  document.querySelectorAll('#mtgColorSwatches .color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedMtgColor = el.dataset.color;
+}
+
+async function saveMeeting() {
+  const name = document.getElementById('mtgName').value.trim();
+  if (!name) { showToast('Meeting name is required', 'error'); return; }
+  const body = {
+    name,
+    dayOfWeek:      parseInt(document.getElementById('mtgDay').value),
+    meetingTime:    document.getElementById('mtgTime').value || null,
+    location:       document.getElementById('mtgLocation').value.trim() || null,
+    commitmentType: document.getElementById('mtgCommit').value,
+    notes:          document.getElementById('mtgNotes').value.trim() || null,
+    recurring:      document.getElementById('mtgRecurring').checked,
+    color:          selectedMtgColor,
+  };
+  try {
+    if (editingMeetingId) {
+      const updated = await api('PUT', `/api/na/meetings/${editingMeetingId}`, body);
+      naMeetings = naMeetings.map(m => m.id === editingMeetingId ? updated : m);
+      showToast('Meeting updated', 'success');
+    } else {
+      body.id = `mtg-${Date.now()}`;
+      const created = await api('POST', '/api/na/meetings', body);
+      naMeetings.push(created);
+      showToast('Meeting added! 🤝', 'success');
+    }
+    closeMeetingModal();
+    renderMeetingsTab();
+    renderRecoveryToday();
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+async function deleteMeeting() {
+  if (!editingMeetingId || !confirm('Delete this meeting?')) return;
+  try {
+    await api('DELETE', `/api/na/meetings/${editingMeetingId}`);
+    naMeetings = naMeetings.filter(m => m.id !== editingMeetingId);
+    closeMeetingModal();
+    renderMeetingsTab();
+    renderRecoveryToday();
+    showToast('Meeting deleted', 'success');
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+async function toggleAttendance(id, attended) {
+  try {
+    await api('POST', `/api/na/meetings/${id}/attend`, { attended });
+    naMeetings = naMeetings.map(m => m.id === id ? { ...m, attendedToday: attended } : m);
+    if (attended && !naAttendanceDates.includes(dateStr(new Date()))) {
+      naAttendanceDates = [dateStr(new Date()), ...naAttendanceDates];
+    }
+    renderMeetingsTab();
+    renderRecoveryToday();
+    showToast(attended ? '✓ Attendance marked!' : 'Attendance removed', 'success');
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+// ── Sponsor Tab ───────────────────────────────────────────────────────────────
+function renderSponsorTab() {
+  renderSponsorProfile();
+  renderStepsGrid();
+  renderDailyTasks();
+}
+
+function renderSponsorProfile() {
+  const el = document.getElementById('sponsorProfileContent');
+  if (!el) return;
+  if (!naSponsor || !naSponsor.name) {
+    el.innerHTML = `
+      <div class="sponsor-empty">
+        <div style="font-size:40px;margin-bottom:8px">👤</div>
+        <p style="margin-bottom:14px">No sponsor info yet.</p>
+        <button class="btn btn-primary" onclick="openSponsorModal()">Add My Sponsor</button>
+      </div>`;
+    return;
+  }
+  const s = naSponsor;
+  el.innerHTML = `
+    <div class="sponsor-profile-card">
+      <div class="sponsor-avatar">👤</div>
+      <div class="sponsor-info">
+        <div class="sponsor-name">${escHtml(s.name)}</div>
+        <div class="sponsor-meta">
+          ${s.phone ? `📞 <a href="tel:${escHtml(s.phone)}">${escHtml(s.phone)}</a>` : ''}
+          ${s.phone && s.email ? ' · ' : ''}
+          ${s.email ? `✉️ <a href="mailto:${escHtml(s.email)}">${escHtml(s.email)}</a>` : ''}
+          ${s.yearsClean ? `<br>☀️ ${escHtml(s.yearsClean)} clean` : ''}
+          ${s.notes ? `<br><span style="font-size:12px;color:var(--text-muted)">${escHtml(s.notes)}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function openSponsorModal() {
+  const s = naSponsor || {};
+  document.getElementById('spName').value   = s.name || '';
+  document.getElementById('spPhone').value  = s.phone || '';
+  document.getElementById('spEmail').value  = s.email || '';
+  document.getElementById('spYears').value  = s.yearsClean || '';
+  document.getElementById('spNotes').value  = s.notes || '';
+  document.getElementById('sponsorModal').classList.add('open');
+  setTimeout(() => document.getElementById('spName').focus(), 50);
+}
+
+function closeSponsorModal(e) {
+  if (e && e.target !== document.getElementById('sponsorModal')) return;
+  document.getElementById('sponsorModal').classList.remove('open');
+}
+
+async function saveSponsor() {
+  const body = {
+    name:       document.getElementById('spName').value.trim(),
+    phone:      document.getElementById('spPhone').value.trim(),
+    email:      document.getElementById('spEmail').value.trim(),
+    yearsClean: document.getElementById('spYears').value.trim(),
+    notes:      document.getElementById('spNotes').value.trim(),
+    currentStep: naSponsor?.currentStep || 1,
+  };
+  try {
+    naSponsor = await api('PUT', '/api/na/sponsor', body);
+    closeSponsorModal();
+    renderSponsorProfile();
+    showToast('Sponsor info saved!', 'success');
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+// ── 12 Steps ──────────────────────────────────────────────────────────────────
+function renderStepsGrid() {
+  const grid = document.getElementById('stepsGrid');
+  const bar  = document.getElementById('stepsProgressBar');
+  const lbl  = document.getElementById('stepsProgressLabel');
+  const sub  = document.getElementById('stepsSubtitle');
+  if (!grid) return;
+
+  const completed = naSteps.filter(s => s.completedAt).length;
+  const currentStep = naSponsor?.currentStep || 1;
+  if (bar) bar.style.width = `${Math.round((completed / 12) * 100)}%`;
+  if (lbl) lbl.textContent = `${completed} / 12 complete`;
+  if (sub) sub.textContent = `Currently on Step ${currentStep}`;
+
+  grid.innerHTML = naSteps.map(s => {
+    const isCurrent = s.stepNumber === currentStep;
+    const isDone    = !!s.completedAt;
+    return `<div class="step-box${isDone ? ' completed' : isCurrent ? ' current' : ''}"
+      title="Step ${s.stepNumber}: ${NA_STEP_TITLES[s.stepNumber-1]}"
+      onclick="openStepModal(${s.stepNumber})">${s.stepNumber}</div>`;
+  }).join('');
+
+  if (openStepNumber) renderStepDetail(openStepNumber);
+}
+
+function openStepModal(num) {
+  openStepNumber = num;
+  const step = naSteps.find(s => s.stepNumber === num) || { stepNumber: num, notes: '', completedAt: null };
+  document.getElementById('stepModalTitle').textContent = `Step ${num}: ${NA_STEP_TITLES[num-1]}`;
+  document.getElementById('stepModalDesc').textContent  = NA_STEP_DESC[num-1];
+  document.getElementById('stepNotes').value            = step.notes || '';
+  document.getElementById('stepCompleted').checked      = !!step.completedAt;
+  document.getElementById('stepModal').classList.add('open');
+  setTimeout(() => document.getElementById('stepNotes').focus(), 50);
+}
+
+function closeStepModal(e) {
+  if (e && e.target !== document.getElementById('stepModal')) return;
+  document.getElementById('stepModal').classList.remove('open');
+}
+
+function renderStepDetail(num) {
+  const panel = document.getElementById('stepDetailPanel');
+  if (!panel) return;
+  const step = naSteps.find(s => s.stepNumber === num);
+  if (!step?.notes && !step?.completedAt) { panel.innerHTML = ''; return; }
+  panel.innerHTML = `
+    <div class="step-detail-panel">
+      <div class="step-detail-title">Step ${num} — ${NA_STEP_TITLES[num-1]}</div>
+      ${step.completedAt ? `<div style="font-size:12px;color:var(--success);margin-bottom:8px">✓ Completed ${new Date(step.completedAt).toLocaleDateString()}</div>` : ''}
+      ${step.notes ? `<div class="step-detail-desc">${escHtml(step.notes)}</div>` : ''}
+      <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" onclick="openStepModal(${num})">✏️ Edit Notes</button>
+    </div>`;
+}
+
+async function saveStepNotes() {
+  const num       = openStepNumber;
+  const notes     = document.getElementById('stepNotes').value.trim();
+  const completed = document.getElementById('stepCompleted').checked;
+  try {
+    const updated = await api('PUT', `/api/na/steps/${num}`, { notes, completed });
+    naSteps = naSteps.map(s => s.stepNumber === num ? updated : s);
+    // Update currentStep on sponsor to next incomplete step
+    if (completed && naSponsor) {
+      const nextIncomplete = naSteps.find(s => !s.completedAt && s.stepNumber > num);
+      if (nextIncomplete) {
+        naSponsor = await api('PUT', '/api/na/sponsor', { ...naSponsor, currentStep: nextIncomplete.stepNumber });
+      }
+    }
+    closeStepModal();
+    renderStepsGrid();
+    showToast(`Step ${num} saved!`, 'success');
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+// ── Daily Tasks ───────────────────────────────────────────────────────────────
+function renderDailyTasks() {
+  const el  = document.getElementById('dailyTasksList');
+  const bar = document.getElementById('tasksProgressBar');
+  const lbl = document.getElementById('tasksProgressLabel');
+  if (!el) return;
+
+  const done  = naDailyTasks.filter(t => t.completedToday).length;
+  const total = naDailyTasks.length;
+  const pct   = total ? Math.round((done / total) * 100) : 0;
+  if (bar) bar.style.width = pct + '%';
+  if (lbl) lbl.textContent = `${done} / ${total} complete`;
+
+  if (!total) {
+    el.innerHTML = '<p class="muted" style="text-align:center;padding:12px 0">No tasks yet — add one above.</p>';
+    return;
+  }
+
+  el.innerHTML = naDailyTasks.map(t => `
+    <div class="dtask-item${t.completedToday ? ' done' : ''}">
+      <input class="dtask-cb" type="checkbox" ${t.completedToday ? 'checked' : ''}
+        onchange="toggleDailyTask('${t.id}', this.checked)">
+      <span class="dtask-text">${escHtml(t.taskText)}</span>
+      ${t.isPreset ? '<span class="dtask-preset-badge">preset</span>' : ''}
+      <button class="dtask-del" onclick="removeDailyTask('${t.id}')" title="Remove">✕</button>
+    </div>`).join('');
+}
+
+async function toggleDailyTask(id, completed) {
+  try {
+    await api('POST', `/api/na/daily-tasks/${id}/complete`, { completed });
+    naDailyTasks = naDailyTasks.map(t => t.id === id ? { ...t, completedToday: completed } : t);
+    renderDailyTasks();
+    renderRecoveryToday();
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+async function removeDailyTask(id) {
+  if (!confirm('Remove this task?')) return;
+  try {
+    await api('DELETE', `/api/na/daily-tasks/${id}`);
+    naDailyTasks = naDailyTasks.filter(t => t.id !== id);
+    renderDailyTasks();
+    renderRecoveryToday();
+    showToast('Task removed', 'success');
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+function openAddTaskModal() {
+  document.getElementById('newTaskText').value = '';
+  document.getElementById('addTaskModal').classList.add('open');
+  setTimeout(() => document.getElementById('newTaskText').focus(), 50);
+}
+
+function closeAddTaskModal(e) {
+  if (e && e.target !== document.getElementById('addTaskModal')) return;
+  document.getElementById('addTaskModal').classList.remove('open');
+}
+
+async function saveNewTask() {
+  const text = document.getElementById('newTaskText').value.trim();
+  if (!text) { showToast('Enter a task', 'error'); return; }
+  try {
+    const task = await api('POST', '/api/na/daily-tasks', {
+      id: `task-${Date.now()}`, taskText: text, isPreset: false,
+      sortOrder: naDailyTasks.length,
+    });
+    naDailyTasks.push(task);
+    closeAddTaskModal();
+    renderDailyTasks();
+    renderRecoveryToday();
+    showToast('Task added!', 'success');
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
 }
 
 // ── Sobriety Counter ──────────────────────────────────────────────────────────
@@ -510,24 +1053,28 @@ function updateSobrietyPreview() {
     </div>`;
 }
 
-function saveSobrietyDate() {
+async function saveSobrietyDate() {
   const val = document.getElementById('sobrietyDateInput').value;
   if (!val) { showToast('Please select a date', 'error'); return; }
   if (new Date(val + 'T00:00:00') > new Date()) { showToast('Date cannot be in the future', 'error'); return; }
-  sobrietyDate = val;
-  localStorage.setItem('ja_sobriety_date', val);
-  closeSobrietyModal();
-  renderSobrietyCounter();
-  showToast('Clean date saved! 💙', 'success');
+  try {
+    await api('PUT', '/api/na/settings', { sobriety_date: val });
+    sobrietyDate = val;
+    closeSobrietyModal();
+    renderSobrietyCounter();
+    showToast('Clean date saved! 💙', 'success');
+  } catch (err) { showToast('Failed to save: ' + err.message, 'error'); }
 }
 
-function resetSobrietyCounter() {
+async function resetSobrietyCounter() {
   if (!confirm('Reset your sobriety counter? This will clear your clean date.')) return;
-  sobrietyDate = null;
-  localStorage.removeItem('ja_sobriety_date');
-  if (sobrietyTicker) { clearInterval(sobrietyTicker); sobrietyTicker = null; }
-  renderSobrietyCounter();
-  showToast('Counter reset', 'success');
+  try {
+    await api('PUT', '/api/na/settings', { sobriety_date: null });
+    sobrietyDate = null;
+    if (sobrietyTicker) { clearInterval(sobrietyTicker); sobrietyTicker = null; }
+    renderSobrietyCounter();
+    showToast('Counter reset', 'success');
+  } catch (err) { showToast('Failed to reset: ' + err.message, 'error'); }
 }
 
 function copySobrietyText() {

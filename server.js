@@ -35,6 +35,55 @@ CREATE TABLE IF NOT EXISTS habits (
   display_order INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_entries_date ON entries(date);
+CREATE TABLE IF NOT EXISTS na_meetings (
+  id              TEXT     PRIMARY KEY,
+  name            TEXT     NOT NULL,
+  day_of_week     SMALLINT NOT NULL,
+  meeting_time    TEXT,
+  location        TEXT,
+  commitment_type TEXT     DEFAULT 'member',
+  notes           TEXT,
+  recurring       BOOLEAN  DEFAULT true,
+  color           TEXT     DEFAULT '#6366f1',
+  created_at      BIGINT
+);
+CREATE TABLE IF NOT EXISTS na_meeting_attendance (
+  id            TEXT PRIMARY KEY,
+  meeting_id    TEXT REFERENCES na_meetings(id) ON DELETE CASCADE,
+  attended_date DATE NOT NULL,
+  UNIQUE(meeting_id, attended_date)
+);
+CREATE TABLE IF NOT EXISTS na_sponsor (
+  id           TEXT PRIMARY KEY,
+  name         TEXT,
+  phone        TEXT,
+  email        TEXT,
+  years_clean  TEXT,
+  notes        TEXT,
+  current_step SMALLINT DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS na_steps (
+  step_number  SMALLINT PRIMARY KEY,
+  notes        TEXT     DEFAULT '',
+  completed_at BIGINT
+);
+CREATE TABLE IF NOT EXISTS na_daily_tasks (
+  id           TEXT    PRIMARY KEY,
+  task_text    TEXT    NOT NULL,
+  sort_order   INTEGER DEFAULT 0,
+  is_preset    BOOLEAN DEFAULT false,
+  created_at   BIGINT  DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS na_daily_task_completions (
+  id             TEXT PRIMARY KEY,
+  task_id        TEXT REFERENCES na_daily_tasks(id) ON DELETE CASCADE,
+  completed_date DATE NOT NULL,
+  UNIQUE(task_id, completed_date)
+);
+CREATE TABLE IF NOT EXISTS na_settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT
+);
 `;
 
 // ── Calendar auto-sync helper ─────────────────────────────────────────────────
@@ -458,6 +507,255 @@ app.post('/api/claude', requireAuth, async (req, res) => {
   }
 });
 
+// ── NA Settings (sobriety date, etc.) ────────────────────────────────────────
+app.get('/api/na/settings', requireAuth, async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT key, value FROM na_settings');
+    const s = {};
+    rows.forEach(r => { s[r.key] = r.value; });
+    res.json(s);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/na/settings', requireAuth, async (req, res) => {
+  const updates = req.body; // { key: value, ... }
+  try {
+    for (const [k, v] of Object.entries(updates)) {
+      await pool.query(
+        `INSERT INTO na_settings (key, value) VALUES ($1,$2)
+         ON CONFLICT (key) DO UPDATE SET value=$2`,
+        [k, v === null ? null : String(v)]
+      );
+    }
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── NA Meetings ───────────────────────────────────────────────────────────────
+app.get('/api/na/meetings', requireAuth, async (_req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const { rows: mtgs } = await pool.query(
+      'SELECT * FROM na_meetings ORDER BY day_of_week, meeting_time'
+    );
+    const { rows: att } = await pool.query(
+      'SELECT meeting_id FROM na_meeting_attendance WHERE attended_date=$1', [today]
+    );
+    const todaySet = new Set(att.map(r => r.meeting_id));
+    res.json(mtgs.map(m => ({
+      id: m.id, name: m.name, dayOfWeek: m.day_of_week,
+      meetingTime: m.meeting_time, location: m.location,
+      commitmentType: m.commitment_type, notes: m.notes,
+      recurring: m.recurring, color: m.color || '#6366f1',
+      createdAt: Number(m.created_at),
+      attendedToday: todaySet.has(m.id),
+    })));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/na/meetings', requireAuth, async (req, res) => {
+  const { id, name, dayOfWeek, meetingTime, location, commitmentType, notes, recurring, color } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO na_meetings (id,name,day_of_week,meeting_time,location,commitment_type,notes,recurring,color,created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [id, name, dayOfWeek, meetingTime||null, location||null,
+       commitmentType||'member', notes||null, recurring!==false,
+       color||'#6366f1', Date.now()]
+    );
+    const m = rows[0];
+    res.status(201).json({ id:m.id, name:m.name, dayOfWeek:m.day_of_week, meetingTime:m.meeting_time,
+      location:m.location, commitmentType:m.commitment_type, notes:m.notes,
+      recurring:m.recurring, color:m.color, createdAt:Number(m.created_at), attendedToday:false });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/na/meetings/:id', requireAuth, async (req, res) => {
+  const { name, dayOfWeek, meetingTime, location, commitmentType, notes, recurring, color } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE na_meetings SET name=$1,day_of_week=$2,meeting_time=$3,location=$4,
+       commitment_type=$5,notes=$6,recurring=$7,color=$8 WHERE id=$9 RETURNING *`,
+      [name, dayOfWeek, meetingTime||null, location||null,
+       commitmentType||'member', notes||null, recurring!==false,
+       color||'#6366f1', req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    const m = rows[0];
+    const { rows: att } = await pool.query(
+      'SELECT meeting_id FROM na_meeting_attendance WHERE attended_date=$1 AND meeting_id=$2',
+      [new Date().toISOString().split('T')[0], m.id]
+    );
+    res.json({ id:m.id, name:m.name, dayOfWeek:m.day_of_week, meetingTime:m.meeting_time,
+      location:m.location, commitmentType:m.commitment_type, notes:m.notes,
+      recurring:m.recurring, color:m.color, createdAt:Number(m.created_at),
+      attendedToday: att.length > 0 });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/na/meetings/:id', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM na_meetings WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/na/meetings/:id/attend', requireAuth, async (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  const { attended } = req.body;
+  try {
+    if (attended) {
+      await pool.query(
+        `INSERT INTO na_meeting_attendance (id, meeting_id, attended_date)
+         VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
+        [uuidv4(), req.params.id, today]
+      );
+    } else {
+      await pool.query(
+        'DELETE FROM na_meeting_attendance WHERE meeting_id=$1 AND attended_date=$2',
+        [req.params.id, today]
+      );
+    }
+    res.json({ ok: true, attended });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/na/meetings/attendance', requireAuth, async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT attended_date FROM na_meeting_attendance
+       ORDER BY attended_date DESC LIMIT 365`
+    );
+    res.json(rows.map(r => {
+      const d = r.attended_date instanceof Date
+        ? [r.attended_date.getFullYear(),
+           String(r.attended_date.getMonth()+1).padStart(2,'0'),
+           String(r.attended_date.getDate()).padStart(2,'0')].join('-')
+        : String(r.attended_date).slice(0,10);
+      return d;
+    }));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── NA Sponsor ────────────────────────────────────────────────────────────────
+app.get('/api/na/sponsor', requireAuth, async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM na_sponsor WHERE id=$1', ['main']);
+    if (!rows.length) return res.json(null);
+    const r = rows[0];
+    res.json({ id:r.id, name:r.name, phone:r.phone, email:r.email,
+      yearsClean:r.years_clean, notes:r.notes, currentStep:r.current_step });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/na/sponsor', requireAuth, async (req, res) => {
+  const { name, phone, email, yearsClean, notes, currentStep } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO na_sponsor (id,name,phone,email,years_clean,notes,current_step)
+       VALUES ('main',$1,$2,$3,$4,$5,$6)
+       ON CONFLICT (id) DO UPDATE
+         SET name=$1,phone=$2,email=$3,years_clean=$4,notes=$5,current_step=$6
+       RETURNING *`,
+      [name||null, phone||null, email||null, yearsClean||null, notes||null, currentStep||1]
+    );
+    const r = rows[0];
+    res.json({ id:r.id, name:r.name, phone:r.phone, email:r.email,
+      yearsClean:r.years_clean, notes:r.notes, currentStep:r.current_step });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── NA 12 Steps ───────────────────────────────────────────────────────────────
+app.get('/api/na/steps', requireAuth, async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM na_steps ORDER BY step_number');
+    const map = {};
+    rows.forEach(r => { map[r.step_number] = r; });
+    const all = Array.from({ length: 12 }, (_, i) => {
+      const n = i + 1;
+      const r = map[n];
+      return { stepNumber: n, notes: r?.notes || '', completedAt: r?.completed_at ? Number(r.completed_at) : null };
+    });
+    res.json(all);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/na/steps/:num', requireAuth, async (req, res) => {
+  const n = parseInt(req.params.num);
+  if (n < 1 || n > 12) return res.status(400).json({ error: 'Step must be 1–12' });
+  const { notes, completed } = req.body;
+  const completedAt = completed ? Date.now() : null;
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO na_steps (step_number, notes, completed_at) VALUES ($1,$2,$3)
+       ON CONFLICT (step_number) DO UPDATE SET notes=$2, completed_at=$3 RETURNING *`,
+      [n, notes||'', completedAt]
+    );
+    const r = rows[0];
+    res.json({ stepNumber:r.step_number, notes:r.notes,
+      completedAt: r.completed_at ? Number(r.completed_at) : null });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── NA Daily Tasks ────────────────────────────────────────────────────────────
+app.get('/api/na/daily-tasks', requireAuth, async (_req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const { rows: tasks } = await pool.query(
+      'SELECT * FROM na_daily_tasks ORDER BY sort_order, created_at'
+    );
+    const { rows: done } = await pool.query(
+      'SELECT task_id FROM na_daily_task_completions WHERE completed_date=$1', [today]
+    );
+    const doneSet = new Set(done.map(r => r.task_id));
+    res.json(tasks.map(t => ({
+      id: t.id, taskText: t.task_text, isPreset: t.is_preset,
+      sortOrder: t.sort_order, completedToday: doneSet.has(t.id)
+    })));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/na/daily-tasks', requireAuth, async (req, res) => {
+  const { id, taskText, isPreset, sortOrder } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO na_daily_tasks (id, task_text, is_preset, sort_order, created_at)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [id, taskText, isPreset||false, sortOrder||0, Date.now()]
+    );
+    const t = rows[0];
+    res.status(201).json({ id:t.id, taskText:t.task_text, isPreset:t.is_preset,
+      sortOrder:t.sort_order, completedToday:false });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/na/daily-tasks/:id', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM na_daily_tasks WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/na/daily-tasks/:id/complete', requireAuth, async (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  const { completed } = req.body;
+  try {
+    if (completed) {
+      await pool.query(
+        `INSERT INTO na_daily_task_completions (id, task_id, completed_date)
+         VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
+        [uuidv4(), req.params.id, today]
+      );
+    } else {
+      await pool.query(
+        'DELETE FROM na_daily_task_completions WHERE task_id=$1 AND completed_date=$2',
+        [req.params.id, today]
+      );
+    }
+    res.json({ ok: true, completed });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 const PORT = process.env.PORT || 3001;
 
 async function startServer() {
@@ -472,6 +770,32 @@ async function startServer() {
 
   console.log(`[Config] PORT=${PORT}`);
   console.log(`[Config] Claude key source=${process.env.ANTHROPIC_API_KEY ? 'env:ANTHROPIC_API_KEY' : 'request:x-api-key'}`);
+
+  // Seed default NA daily tasks on first run
+  try {
+    const { rows: taskCheck } = await pool.query('SELECT COUNT(*) FROM na_daily_tasks');
+    if (parseInt(taskCheck[0].count) === 0) {
+      const defaults = [
+        'Call my sponsor',
+        'Pray or meditate',
+        'Read the NA Basic Text',
+        'Send a gratitude list',
+        'Attend a meeting',
+        'Reach out to another addict in recovery',
+        'Write in my journal',
+      ];
+      for (const [i, text] of defaults.entries()) {
+        await pool.query(
+          `INSERT INTO na_daily_tasks (id, task_text, is_preset, sort_order, created_at)
+           VALUES ($1,$2,true,$3,$4) ON CONFLICT DO NOTHING`,
+          [uuidv4(), text, i, Date.now() + i]
+        );
+      }
+      console.log('[NA] Seeded default daily tasks');
+    }
+  } catch (err) {
+    console.error('[NA] Task seed error:', err.message);
+  }
 
   app.listen(PORT, () => {
     console.log(`AI Journal Analyzer + NAS running at http://localhost:${PORT}`);
