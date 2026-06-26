@@ -986,12 +986,12 @@ function renderStepsGrid() {
   if (openStepNumber) renderStepDetail(openStepNumber);
 }
 
-function openStepModal(num) {
+async function openStepModal(num) {
   openStepNumber = num;
   const step = naSteps.find(s => s.stepNumber === num) || { stepNumber: num, notes: '', completedAt: null };
   document.getElementById('stepModalTitle').textContent = `Step ${num}: ${NA_STEP_TITLES[num-1]}`;
   document.getElementById('stepModalDesc').textContent  = NA_STEP_DESC[num-1];
-  document.getElementById('stepNotes').value            = step.notes || '';
+  document.getElementById('stepNotes').value            = '';
 
   const isDone = !!step.completedAt;
   document.getElementById('stepCompleted').checked = isDone;
@@ -1011,6 +1011,12 @@ function openStepModal(num) {
 
   document.getElementById('stepModal').classList.add('open');
   setTimeout(() => document.getElementById('stepNotes').focus(), 50);
+
+  // Load saved notes from DB
+  try {
+    currentStepNotes = await api('GET', `/api/na/steps/${num}/notes`);
+    renderStepNotesHistory();
+  } catch { currentStepNotes = []; }
 }
 
 function stepReopenToggle() {
@@ -1044,22 +1050,56 @@ function renderStepDetail(num) {
 
 async function saveStepNotes() {
   const num       = openStepNumber;
-  const notes     = document.getElementById('stepNotes').value.trim();
+  const noteText  = document.getElementById('stepNotes').value.trim();
   const completed = document.getElementById('stepCompleted').checked;
   try {
-    const updated = await api('PUT', `/api/na/steps/${num}`, { notes, completed });
+    const updated = await api('PUT', `/api/na/steps/${num}`, { notes: '', completed });
     naSteps = naSteps.map(s => s.stepNumber === num ? updated : s);
-    // Update currentStep on sponsor to next incomplete step
+    // Advance sponsor's current step
     if (completed && naSponsor) {
       const nextIncomplete = naSteps.find(s => !s.completedAt && s.stepNumber > num);
       if (nextIncomplete) {
         naSponsor = await api('PUT', '/api/na/sponsor', { ...naSponsor, currentStep: nextIncomplete.stepNumber });
       }
     }
-    closeStepModal();
+    // Save note entry if text provided
+    if (noteText) {
+      const note = await api('POST', `/api/na/steps/${num}/notes`, {
+        id: `snote-${Date.now()}`, content: noteText,
+      });
+      currentStepNotes.push(note);
+      document.getElementById('stepNotes').value = '';
+      renderStepNotesHistory();
+    }
     renderStepsGrid();
     showToast(`Step ${num} saved!`, 'success');
+    if (!noteText) closeStepModal();
   } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+function renderStepNotesHistory() {
+  const wrap = document.getElementById('stepNotesList');
+  const list = document.getElementById('stepNotesHistory');
+  if (!wrap || !list) return;
+  if (!currentStepNotes.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  list.innerHTML = currentStepNotes.slice().reverse().map(n => {
+    const ts = new Date(n.created_at).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+    return `
+      <div class="step-note-entry">
+        <div class="step-note-meta">
+          <span class="step-note-date">${ts}</span>
+          <button class="step-note-del" onclick="deleteStepNote('${n.id}',${openStepNumber})" title="Delete">✕</button>
+        </div>
+        <div class="step-note-body">${escHtml(n.content)}</div>
+      </div>`;
+  }).join('');
+}
+
+async function deleteStepNote(id, num) {
+  await api('DELETE', `/api/na/steps/${num}/notes/${id}`);
+  currentStepNotes = currentStepNotes.filter(n => n.id !== id);
+  renderStepNotesHistory();
 }
 
 // ── Daily Tasks ───────────────────────────────────────────────────────────────
@@ -3044,4 +3084,255 @@ function renderMarkdown(text) {
     .replace(/^- (.+)$/gm, '<li style="margin:4px 0 4px 18px">$1</li>')
     .replace(/\n\n/g, '<br><br>')
     .replace(/\n/g, '<br>');
+}
+
+// ── Program Selector ──────────────────────────────────────────────────────────
+const PROGRAM_CONFIG = {
+  NA:    { line1: 'NA Recovery',     line2: 'Tracker',  emoji: '💙' },
+  AA:    { line1: 'AA Recovery',     line2: 'Tracker',  emoji: '🔵' },
+  CA:    { line1: 'CA Recovery',     line2: 'Tracker',  emoji: '⚪' },
+  SA:    { line1: 'SA Recovery',     line2: 'Tracker',  emoji: '🟣' },
+  GA:    { line1: 'GA Recovery',     line2: 'Tracker',  emoji: '🟡' },
+  SMART: { line1: 'SMART',           line2: 'Recovery', emoji: '🟢' },
+  OTHER: { line1: 'AI Recovery',     line2: 'Tracker',  emoji: '📓' },
+};
+
+function applyProgram(code) {
+  naProgram = code || 'NA';
+  const cfg = PROGRAM_CONFIG[naProgram] || PROGRAM_CONFIG.OTHER;
+  const l1 = document.getElementById('sidebarLine1');
+  const l2 = document.getElementById('sidebarLine2');
+  const sel = document.getElementById('programSelect');
+  if (l1) l1.textContent = cfg.line1;
+  if (l2) l2.textContent = cfg.line2;
+  if (sel) sel.value = naProgram;
+}
+
+async function setProgram(code) {
+  naProgram = code;
+  applyProgram(code);
+  try {
+    await api('PUT', '/api/na/settings', { program: code });
+    showToast(`Program set to ${code}`, 'success');
+  } catch { /* non-critical */ }
+}
+
+// ── Profile Picture ───────────────────────────────────────────────────────────
+function renderAvatarSidebar() {
+  const emoji = document.getElementById('avatarEmoji');
+  const img   = document.getElementById('avatarImg');
+  if (!emoji || !img) return;
+  if (avatarUrl) {
+    img.src = avatarUrl + '?t=' + Date.now();
+    img.style.display = '';
+    emoji.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    emoji.style.display = '';
+  }
+}
+
+async function uploadAvatar(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('avatar', file);
+  try {
+    const token = localStorage.getItem('ja_token');
+    const res = await fetch('/api/profile/picture', {
+      method: 'POST',
+      headers: token ? { Authorization: 'Bearer ' + token } : {},
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
+    avatarUrl = data.url;
+    renderAvatarSidebar();
+    showToast('Profile picture updated!', 'success');
+  } catch (err) { showToast('Upload failed: ' + err.message, 'error'); }
+  input.value = '';
+}
+
+// ── Quit Habits ───────────────────────────────────────────────────────────────
+const QH_COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
+
+function qhDaysClean(qh) {
+  if (!qh.quit_date) return null;
+  const start = new Date(qh.quit_date + 'T00:00:00');
+  return Math.floor((Date.now() - start) / 864e5);
+}
+
+function renderQuitHabits() {
+  const el = document.getElementById('quitHabitsList');
+  if (!el) return;
+  if (!quitHabits.length) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:10px 0">No quit habits tracked yet. Add one above.</p>';
+    return;
+  }
+  el.innerHTML = quitHabits.map(qh => {
+    const days = qhDaysClean(qh);
+    const label = days === null ? 'No date set' : days === 0 ? 'Day 1 — You got this!' :
+      days === 1 ? '1 day clean' : `${days.toLocaleString()} days clean`;
+    const pct = days ? Math.min(100, Math.round((days / 365) * 100)) : 0;
+    return `
+      <div class="qh-card" style="border-left-color:${qh.color}">
+        <div class="qh-top">
+          <div>
+            <div class="qh-name">${escHtml(qh.name)}</div>
+            <div class="qh-streak" style="color:${qh.color}">${label}</div>
+          </div>
+          <button class="qh-edit-btn" onclick="openQuitHabitModal('${qh.id}')" title="Edit">✏️</button>
+        </div>
+        ${days !== null ? `
+        <div class="qh-bar-wrap">
+          <div class="qh-bar-fill" style="width:${pct}%;background:${qh.color}"></div>
+        </div>
+        <div class="qh-bar-label">${pct}% of first year</div>` : ''}
+        ${qh.notes ? `<div class="qh-notes">${escHtml(qh.notes)}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function openQuitHabitModal(id) {
+  editingQhId = id || null;
+  const qh = id ? quitHabits.find(q => q.id === id) : null;
+  document.getElementById('quitHabitModalTitle').textContent = qh ? 'Edit Quit Habit' : 'Track a Quit Habit';
+  document.getElementById('qhName').value  = qh?.name || '';
+  document.getElementById('qhDate').value  = qh?.quit_date || new Date().toISOString().split('T')[0];
+  document.getElementById('qhNotes').value = qh?.notes || '';
+  selectedQhColor = qh?.color || '#ef4444';
+  document.getElementById('qhDeleteBtn').style.display = qh ? '' : 'none';
+  document.querySelectorAll('#qhColorSwatches .color-swatch').forEach(s => {
+    s.classList.toggle('selected', s.dataset.color === selectedQhColor);
+  });
+  document.getElementById('quitHabitModal').classList.add('open');
+  setTimeout(() => document.getElementById('qhName').focus(), 50);
+}
+
+function closeQuitHabitModal(e) {
+  if (e && e.target !== document.getElementById('quitHabitModal')) return;
+  document.getElementById('quitHabitModal').classList.remove('open');
+}
+
+async function saveQuitHabit() {
+  const name = document.getElementById('qhName').value.trim();
+  if (!name) { showToast('Name is required', 'error'); return; }
+  const body = {
+    name,
+    quit_date: document.getElementById('qhDate').value || null,
+    color:     selectedQhColor,
+    notes:     document.getElementById('qhNotes').value.trim() || null,
+  };
+  try {
+    if (editingQhId) {
+      const updated = await api('PUT', `/api/quit-habits/${editingQhId}`, body);
+      quitHabits = quitHabits.map(q => q.id === editingQhId ? updated : q);
+    } else {
+      body.id = `qh-${Date.now()}`;
+      const created = await api('POST', '/api/quit-habits', body);
+      quitHabits.push(created);
+    }
+    closeQuitHabitModal();
+    renderQuitHabits();
+    showToast('Saved!', 'success');
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+async function deleteQuitHabit() {
+  if (!editingQhId || !confirm('Remove this quit habit?')) return;
+  await api('DELETE', `/api/quit-habits/${editingQhId}`);
+  quitHabits = quitHabits.filter(q => q.id !== editingQhId);
+  closeQuitHabitModal();
+  renderQuitHabits();
+  showToast('Removed', 'success');
+}
+
+// ── Sponsee Tracking ──────────────────────────────────────────────────────────
+function renderSponsees() {
+  const el = document.getElementById('sponseesList');
+  if (!el) return;
+  if (!naSponsees.length) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);text-align:center;padding:10px 0">No sponsees added yet.</p>';
+    return;
+  }
+  el.innerHTML = naSponsees.map(s => {
+    const stepLabel = s.step === 0 ? 'Not started' : s.step === 12 ? 'Step 12 ✅' : `Step ${s.step}`;
+    const pct = Math.round((s.step / 12) * 100);
+    return `
+      <div class="sponsee-card">
+        <div class="sponsee-top">
+          <div class="sponsee-avatar">${s.name.charAt(0).toUpperCase()}</div>
+          <div class="sponsee-info">
+            <div class="sponsee-name">${escHtml(s.name)}</div>
+            <div class="sponsee-meta">
+              ${s.phone ? `<a href="tel:${escHtml(s.phone)}" class="sponsee-phone">📞 ${escHtml(s.phone)}</a>` : ''}
+              <span class="sponsee-step-badge">${stepLabel}</span>
+            </div>
+          </div>
+          <button class="sponsee-edit-btn" onclick="openSponseeModal('${s.id}')" title="Edit">✏️</button>
+        </div>
+        ${s.step > 0 ? `
+        <div class="sponsee-bar-wrap">
+          <div class="sponsee-bar-fill" style="width:${pct}%"></div>
+        </div>` : ''}
+        ${s.notes ? `<div class="sponsee-notes">${escHtml(s.notes)}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function openSponseeModal(id) {
+  editingSponseeId = id || null;
+  const s = id ? naSponsees.find(x => x.id === id) : null;
+  document.getElementById('sponseeModalTitle').textContent = s ? 'Edit Sponsee' : 'Add Sponsee';
+  document.getElementById('sponName').value  = s?.name  || '';
+  document.getElementById('sponPhone').value = s?.phone || '';
+  document.getElementById('sponStep').value  = s?.step  ?? 0;
+  document.getElementById('sponNotes').value = s?.notes || '';
+  document.getElementById('sponDeleteBtn').style.display = s ? '' : 'none';
+  document.getElementById('sponseeModal').classList.add('open');
+  setTimeout(() => document.getElementById('sponName').focus(), 50);
+}
+
+function closeSponseeModal(e) {
+  if (e && e.target !== document.getElementById('sponseeModal')) return;
+  document.getElementById('sponseeModal').classList.remove('open');
+}
+
+async function saveSponsee() {
+  const name = document.getElementById('sponName').value.trim();
+  if (!name) { showToast('Name is required', 'error'); return; }
+  const body = {
+    name,
+    phone: document.getElementById('sponPhone').value.trim() || null,
+    step:  parseInt(document.getElementById('sponStep').value) || 0,
+    notes: document.getElementById('sponNotes').value.trim() || null,
+  };
+  try {
+    if (editingSponseeId) {
+      const updated = await api('PUT', `/api/na/sponsees/${editingSponseeId}`, body);
+      naSponsees = naSponsees.map(s => s.id === editingSponseeId ? updated : s);
+    } else {
+      body.id = `spon-${Date.now()}`;
+      const created = await api('POST', '/api/na/sponsees', body);
+      naSponsees.push(created);
+    }
+    closeSponseeModal();
+    renderSponsees();
+    showToast('Saved!', 'success');
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+async function deleteSponsee() {
+  if (!editingSponseeId || !confirm('Remove this sponsee?')) return;
+  await api('DELETE', `/api/na/sponsees/${editingSponseeId}`);
+  naSponsees = naSponsees.filter(s => s.id !== editingSponseeId);
+  closeSponseeModal();
+  renderSponsees();
+  showToast('Removed', 'success');
+}
+
+function pickQhColor(el) {
+  document.querySelectorAll('#qhColorSwatches .color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedQhColor = el.dataset.color;
 }

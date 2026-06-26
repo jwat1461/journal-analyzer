@@ -1572,3 +1572,111 @@ textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
   opacity: .5; transition: opacity .15s, color .15s;
 }
 .res-delete-btn:hover { opacity: 1; color: var(--danger); }
+
+/* ── Program Selector ─────────────────────────────────────────────────────── */
+.program-selector-wrap {
+  padding: 0 12px 10px;
+}
+.program-select {
+  width: 100%; font-size: 11px; padding: 5px 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); cursor: pointer;
+  outline: none; transition: border-color .15s;
+}
+.program-select:hover, .program-select:focus { border-color: var(--primary); }
+
+/* ── Sidebar Avatar ───────────────────────────────────────────────────────── */
+.sidebar-avatar {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--primary-dim); border: 2px solid var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0; cursor: pointer;
+  position: relative; overflow: hidden;
+  transition: border-color .2s;
+}
+.sidebar-avatar:hover { border-color: var(--accent); }
+.avatar-edit-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; opacity: 0; transition: opacity .15s;
+  border-radius: 50%;
+}
+.sidebar-avatar:hover .avatar-edit-overlay { opacity: 1; }
+
+/* ── Quit Habits ──────────────────────────────────────────────────────────── */
+.qh-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-left: 3px solid var(--danger);
+  border-radius: 9px; padding: 12px 14px; margin-bottom: 10px;
+}
+.qh-top {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 10px; margin-bottom: 8px;
+}
+.qh-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+.qh-streak { font-size: 13px; font-weight: 600; }
+.qh-edit-btn {
+  background: none; border: none; cursor: pointer; font-size: 14px;
+  padding: 2px 4px; opacity: .5; transition: opacity .15s; flex-shrink: 0;
+}
+.qh-edit-btn:hover { opacity: 1; }
+.qh-bar-wrap {
+  background: var(--surface); border-radius: 6px; height: 7px;
+  overflow: hidden; margin-bottom: 4px;
+}
+.qh-bar-fill { height: 100%; border-radius: 6px; transition: width .4s ease; }
+.qh-bar-label { font-size: 11px; color: var(--text-muted); }
+.qh-notes { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.4; border-top: 1px solid var(--border); padding-top: 6px; }
+
+/* ── Sponsee Cards ────────────────────────────────────────────────────────── */
+.sponsee-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 9px; padding: 12px 14px; margin-bottom: 10px;
+}
+.sponsee-top {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+}
+.sponsee-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--primary-dim); border: 1px solid var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: var(--primary); flex-shrink: 0;
+}
+.sponsee-info { flex: 1; min-width: 0; }
+.sponsee-name { font-size: 14px; font-weight: 700; }
+.sponsee-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.sponsee-phone { font-size: 12px; color: var(--primary); text-decoration: none; }
+.sponsee-phone:hover { text-decoration: underline; }
+.sponsee-step-badge {
+  font-size: 11px; padding: 1px 7px; border-radius: 10px;
+  background: var(--primary-dim); color: var(--primary); font-weight: 600;
+}
+.sponsee-edit-btn {
+  background: none; border: none; cursor: pointer; font-size: 14px;
+  padding: 2px 4px; opacity: .5; transition: opacity .15s; flex-shrink: 0;
+}
+.sponsee-edit-btn:hover { opacity: 1; }
+.sponsee-bar-wrap {
+  background: var(--surface); border-radius: 6px; height: 6px;
+  overflow: hidden; margin-bottom: 4px;
+}
+.sponsee-bar-fill { height: 100%; background: var(--primary); border-radius: 6px; transition: width .3s; }
+.sponsee-notes { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.4; }
+
+/* ── Step Notes History ───────────────────────────────────────────────────── */
+.step-note-entry {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 7px; padding: 10px 12px; margin-bottom: 8px;
+}
+.step-note-meta {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 5px;
+}
+.step-note-date { font-size: 11px; color: var(--text-muted); }
+.step-note-del {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; color: var(--text-muted); padding: 0;
+  opacity: .5; transition: opacity .15s, color .15s;
+}
+.step-note-del:hover { opacity: 1; color: var(--danger); }
+.step-note-body { font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
