@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Journal Analyzer</title>
+  <title>AI Recovery Tracker</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
 <div id="authScreen" class="auth-overlay" style="display:none">
   <div class="auth-card">
     <div class="auth-logo">📓</div>
-    <h1 class="auth-title">AI Journal + NAS</h1>
+    <h1 class="auth-title">AI Recovery Tracker</h1>
     <span class="brand-sub" style="display:block;text-align:center;margin-bottom:24px">By WATSON TECH</span>
 
     <form id="loginForm" class="auth-form">
@@ -58,12 +58,28 @@
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-header">
-      <div class="logo">📓</div>
+      <div class="logo sidebar-avatar" id="sidebarAvatar" onclick="document.getElementById('avatarInput').click()" title="Click to change profile picture">
+        <span id="avatarEmoji">📓</span>
+        <img id="avatarImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%">
+        <div class="avatar-edit-overlay">📷</div>
+      </div>
+      <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="uploadAvatar(this)">
       <div>
-        <h1>AI Journal</h1>
-        <h1>Analyzer</h1>
+        <h1 id="sidebarLine1">AI Recovery</h1>
+        <h1 id="sidebarLine2">Tracker</h1>
         <span class="brand-sub">By WATSON TECH</span>
       </div>
+    </div>
+    <div class="program-selector-wrap">
+      <select id="programSelect" class="program-select" onchange="setProgram(this.value)" title="Your recovery program">
+        <option value="NA">Narcotics Anonymous (NA)</option>
+        <option value="AA">Alcoholics Anonymous (AA)</option>
+        <option value="CA">Cocaine Anonymous (CA)</option>
+        <option value="SA">Sexaholics Anonymous (SA)</option>
+        <option value="GA">Gamblers Anonymous (GA)</option>
+        <option value="SMART">SMART Recovery</option>
+        <option value="OTHER">Other Program</option>
+      </select>
     </div>
     <nav class="sidebar-nav">
       <button class="nav-item active" data-tab="dashboard">
@@ -93,6 +109,9 @@
       <button class="nav-item" data-tab="insights">
         <span class="nav-icon">📊</span><span>Insights</span>
       </button>
+      <button class="nav-item" data-tab="resources">
+        <span class="nav-icon">🔗</span><span>Resources</span>
+      </button>
       <button class="nav-item" data-tab="settings">
         <span class="nav-icon">⚙️</span><span>Settings</span>
       </button>
@@ -101,6 +120,7 @@
       <div class="sidebar-user" id="userDisplay"></div>
       <button class="btn btn-ghost sidebar-logout" onclick="logout()" title="Sign out">🚪 Sign out</button>
       <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
+      <div class="sidebar-pg-badge">🐘 Powered by PostgreSQL — Your data stays on your device.</div>
     </div>
   </aside>
 
@@ -141,6 +161,30 @@
             <div class="stat-value" id="avgWords">0</div>
             <div class="stat-label">Avg. Words</div>
           </div>
+        </div>
+      </div>
+
+      <!-- Recovery Stats Row -->
+      <div class="recovery-stats-row" id="recoveryStatsRow" style="display:none">
+        <div class="rsb-card">
+          <div class="rsb-icon">💙</div>
+          <div class="rsb-val" id="rsbDaysClean">—</div>
+          <div class="rsb-label">Days Clean</div>
+        </div>
+        <div class="rsb-card">
+          <div class="rsb-icon">🤝</div>
+          <div class="rsb-val" id="rsbMtgsWeek">—</div>
+          <div class="rsb-label">Meetings This Week</div>
+        </div>
+        <div class="rsb-card">
+          <div class="rsb-icon">📖</div>
+          <div class="rsb-val" id="rsbStepProgress">—</div>
+          <div class="rsb-label">Step Progress</div>
+        </div>
+        <div class="rsb-card">
+          <div class="rsb-icon">✅</div>
+          <div class="rsb-val" id="rsbTaskPct">—</div>
+          <div class="rsb-label">Tasks Today</div>
         </div>
       </div>
 
@@ -396,6 +440,20 @@
         <button class="btn btn-primary" onclick="openMeetingModal()">+ Add Meeting</button>
       </div>
       <div class="meetings-stats-bar" id="meetingsStatsBar"></div>
+
+      <!-- 90-in-90 Tracker -->
+      <div class="card nin-card" id="nin90Card">
+        <div class="card-header">
+          <h3>🔥 90 Meetings in 90 Days</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="nin90Status" class="nin-status-badge"></span>
+            <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" onclick="resetNin90()">Reset</button>
+            <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" id="nin90StartBtn" onclick="startNin90()" style="display:none">Start</button>
+          </div>
+        </div>
+        <div id="nin90Body"></div>
+      </div>
+
       <div class="meetings-week" id="meetingsWeekGrid"></div>
     </div>
 
@@ -445,6 +503,25 @@
         <div class="dtask-list" id="dailyTasksList"></div>
         <p style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:4px">Checkboxes reset each day at midnight.</p>
       </div>
+
+      <!-- Quit Habits Tracker -->
+      <div class="card">
+        <div class="card-header">
+          <h3>🚫 Quit Tracker</h3>
+          <button class="btn btn-secondary" onclick="openQuitHabitModal()" style="font-size:12px;padding:5px 12px">+ Add Habit</button>
+        </div>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Track things you've quit — each gets its own streak counter.</p>
+        <div id="quitHabitsList"></div>
+      </div>
+
+      <!-- Sponsees -->
+      <div class="card">
+        <div class="card-header">
+          <h3>🤲 My Sponsees</h3>
+          <button class="btn btn-secondary" onclick="openSponseeModal()" style="font-size:12px;padding:5px 12px">+ Add Sponsee</button>
+        </div>
+        <div id="sponseesList"></div>
+      </div>
     </div>
 
     <!-- Files -->
@@ -463,6 +540,138 @@
     </div>
 
     <!-- Settings -->
+    <!-- Recovery Resources -->
+    <div class="tab-content" id="tab-resources">
+      <div class="page-header">
+        <h2>🔗 Recovery Resources</h2>
+        <button class="btn btn-primary" onclick="openAddResourceModal()">+ Add Link</button>
+      </div>
+
+      <!-- Built-in categories -->
+      <div class="res-section">
+        <div class="res-section-title">🌐 Program Websites</div>
+        <div class="res-links-grid">
+          <a class="res-link-card" href="https://www.na.org" target="_blank" rel="noopener">
+            <span class="res-link-icon">💙</span>
+            <span class="res-link-name">NA.org</span>
+            <span class="res-link-desc">Narcotics Anonymous World Services</span>
+          </a>
+          <a class="res-link-card" href="https://www.aa.org" target="_blank" rel="noopener">
+            <span class="res-link-icon">🔵</span>
+            <span class="res-link-name">AA.org</span>
+            <span class="res-link-desc">Alcoholics Anonymous</span>
+          </a>
+          <a class="res-link-card" href="https://www.ca.org" target="_blank" rel="noopener">
+            <span class="res-link-icon">⚪</span>
+            <span class="res-link-name">CA.org</span>
+            <span class="res-link-desc">Cocaine Anonymous</span>
+          </a>
+          <a class="res-link-card" href="https://www.sa.org" target="_blank" rel="noopener">
+            <span class="res-link-icon">🟣</span>
+            <span class="res-link-name">SA.org</span>
+            <span class="res-link-desc">Sexaholics Anonymous</span>
+          </a>
+          <a class="res-link-card" href="https://www.gamblersanonymous.org" target="_blank" rel="noopener">
+            <span class="res-link-icon">🟡</span>
+            <span class="res-link-name">GA.org</span>
+            <span class="res-link-desc">Gamblers Anonymous</span>
+          </a>
+          <a class="res-link-card" href="https://www.smartrecovery.org" target="_blank" rel="noopener">
+            <span class="res-link-icon">🟢</span>
+            <span class="res-link-name">SMART Recovery</span>
+            <span class="res-link-desc">Science-based recovery support</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="res-section">
+        <div class="res-section-title">📞 Crisis &amp; Hotlines</div>
+        <div class="res-links-grid">
+          <a class="res-link-card res-hotline" href="tel:18006624357" rel="noopener">
+            <span class="res-link-icon">📞</span>
+            <span class="res-link-name">SAMHSA Helpline</span>
+            <span class="res-link-desc">1-800-662-4357 · Free, confidential, 24/7</span>
+          </a>
+          <a class="res-link-card res-hotline" href="tel:988" rel="noopener">
+            <span class="res-link-icon">🆘</span>
+            <span class="res-link-name">988 Suicide &amp; Crisis Lifeline</span>
+            <span class="res-link-desc">Call or text 988 · 24/7 support</span>
+          </a>
+          <a class="res-link-card res-hotline" href="tel:18004889865" rel="noopener">
+            <span class="res-link-icon">💬</span>
+            <span class="res-link-name">Crisis Text Line</span>
+            <span class="res-link-desc">Text HOME to 741741</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="res-section">
+        <div class="res-section-title">📚 Literature &amp; Meditation</div>
+        <div class="res-links-grid">
+          <a class="res-link-card" href="https://www.jftna.org/jft/" target="_blank" rel="noopener">
+            <span class="res-link-icon">📖</span>
+            <span class="res-link-name">Just for Today</span>
+            <span class="res-link-desc">NA daily meditation (online)</span>
+          </a>
+          <a class="res-link-card" href="https://www.hazeldenbettyford.org/articles/daily-meditations" target="_blank" rel="noopener">
+            <span class="res-link-icon">🧘</span>
+            <span class="res-link-name">Daily Meditations</span>
+            <span class="res-link-desc">Hazelden Betty Ford Foundation</span>
+          </a>
+          <a class="res-link-card" href="https://www.na.org/?ID=literature" target="_blank" rel="noopener">
+            <span class="res-link-icon">📕</span>
+            <span class="res-link-name">NA Literature</span>
+            <span class="res-link-desc">Basic Text, step guides &amp; more</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Custom links -->
+      <div class="res-section" id="customLinksSection" style="display:none">
+        <div class="res-section-title">⭐ My Links</div>
+        <div class="res-links-grid" id="customLinksList"></div>
+      </div>
+    </div>
+
+    <!-- Add Resource Modal -->
+    <div class="modal-overlay" id="addResourceModal" onclick="closeAddResourceModal(event)">
+      <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+          <h3>Add Custom Link</h3>
+          <button class="modal-close" onclick="closeAddResourceModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Title *</label>
+            <input type="text" id="resTitle" placeholder="e.g. My Home Group Website">
+          </div>
+          <div class="form-group">
+            <label>URL *</label>
+            <input type="url" id="resUrl" placeholder="https://...">
+          </div>
+          <div class="form-group">
+            <label>Description (optional)</label>
+            <input type="text" id="resDesc" placeholder="Short description">
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="resCategory">
+              <option value="general">General</option>
+              <option value="meeting">Meeting</option>
+              <option value="literature">Literature</option>
+              <option value="meditation">Meditation</option>
+              <option value="hotline">Hotline</option>
+              <option value="local">Local Resource</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" onclick="saveCustomResource()">Add Link</button>
+          <button class="btn btn-ghost" onclick="closeAddResourceModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <div class="tab-content" id="tab-settings">
       <div class="page-header"><h2>Settings</h2></div>
 
@@ -705,9 +914,14 @@
         <label>Notes (optional)</label>
         <textarea id="mtgNotes" rows="2" placeholder="e.g. Bring coffee, newcomer check-in…"></textarea>
       </div>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-muted)">
-        <input type="checkbox" id="mtgRecurring" checked> Repeat weekly
-      </label>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-muted)">
+          <input type="checkbox" id="mtgRecurring" checked> Repeat weekly
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-muted)">
+          <input type="checkbox" id="mtgAddToCalendar" checked> Add to calendar automatically
+        </label>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="saveMeeting()">Save Meeting</button>
@@ -784,16 +998,24 @@
     </div>
     <div class="modal-body">
       <p id="stepModalDesc" style="font-size:13px;color:var(--text-muted);margin-bottom:14px;line-height:1.6"></p>
-      <div class="form-group">
-        <label>My Notes</label>
-        <textarea id="stepNotes" rows="5" placeholder="Write your thoughts, reflections, or work on this step…"></textarea>
+      <div id="stepCompletedBanner" style="display:none" class="step-completed-banner">
+        ✅ Completed on <span id="stepCompletedDate"></span>
+        <button class="step-reopen-btn" onclick="stepReopenToggle()">↩ Reopen Step</button>
       </div>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+      <div class="form-group">
+        <label>Add a Note</label>
+        <textarea id="stepNotes" rows="3" placeholder="Write your thoughts, reflections, or work on this step…"></textarea>
+      </div>
+      <label id="stepCompleteLabel" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-bottom:14px">
         <input type="checkbox" id="stepCompleted"> Mark this step as complete
       </label>
+      <div id="stepNotesList" style="display:none">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:8px">Previous Notes</div>
+        <div id="stepNotesHistory"></div>
+      </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary" onclick="saveStepNotes()">Save Notes</button>
+      <button class="btn btn-primary" onclick="saveStepNotes()">Save</button>
       <button class="btn btn-ghost" onclick="closeStepModal()">Cancel</button>
     </div>
   </div>
@@ -819,6 +1041,96 @@
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="saveSobrietyDate()">💙 Save My Clean Date</button>
       <button class="btn btn-ghost" onclick="closeSobrietyModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Meeting Stats Modal -->
+<div class="modal-overlay" id="meetingStatsModal" onclick="closeMeetingStatsModal(event)">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h3 id="meetingStatsTitle">Meeting Stats</h3>
+      <button class="modal-close" onclick="closeMeetingStatsModal()">✕</button>
+    </div>
+    <div class="modal-body" id="meetingStatsBody">
+      <p style="color:var(--text-muted);font-size:14px">Loading…</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeMeetingStatsModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quit Habit Modal -->
+<div class="modal-overlay" id="quitHabitModal" onclick="closeQuitHabitModal(event)">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h3 id="quitHabitModalTitle">Track a Quit Habit</h3>
+      <button class="modal-close" onclick="closeQuitHabitModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">What did you quit? *</label>
+        <input type="text" id="qhName" class="form-input" placeholder="e.g. Smoking, Alcohol, Social Media…">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Quit Date</label>
+        <input type="date" id="qhDate" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Color</label>
+        <div class="color-swatches" id="qhColorSwatches"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea id="qhNotes" class="form-input" rows="2" placeholder="Why you quit, how you feel…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="qhDeleteBtn" onclick="deleteQuitHabit()" style="display:none;color:var(--danger)">Delete</button>
+      <button class="btn btn-ghost" onclick="closeQuitHabitModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveQuitHabit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sponsee Modal -->
+<div class="modal-overlay" id="sponseeModal" onclick="closeSponseeModal(event)">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h3 id="sponseeModalTitle">Add Sponsee</h3>
+      <button class="modal-close" onclick="closeSponseeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Name *</label>
+        <input type="text" id="sponName" class="form-input" placeholder="First name or initials">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone (optional)</label>
+        <input type="tel" id="sponPhone" class="form-input" placeholder="Contact number">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Current Step</label>
+        <select id="sponStep" class="form-input">
+          <option value="0">Not started</option>
+          <option value="1">Step 1</option><option value="2">Step 2</option>
+          <option value="3">Step 3</option><option value="4">Step 4</option>
+          <option value="5">Step 5</option><option value="6">Step 6</option>
+          <option value="7">Step 7</option><option value="8">Step 8</option>
+          <option value="9">Step 9</option><option value="10">Step 10</option>
+          <option value="11">Step 11</option><option value="12">Step 12 ✅</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea id="sponNotes" class="form-input" rows="2" placeholder="Meeting frequency, progress…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="sponDeleteBtn" onclick="deleteSponsee()" style="display:none;color:var(--danger)">Remove</button>
+      <button class="btn btn-ghost" onclick="closeSponseeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSponsee()">Save</button>
     </div>
   </div>
 </div>

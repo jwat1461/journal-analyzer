@@ -181,6 +181,24 @@ body {
 .stat-value { font-size: 26px; font-weight: 700; line-height: 1; }
 .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
 
+/* ── Recovery Stats Row ── */
+.recovery-stats-row {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 10px; margin-bottom: 16px;
+}
+.rsb-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 3px; transition: transform .15s, box-shadow .15s;
+}
+.rsb-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.15); }
+.rsb-icon { font-size: 18px; }
+.rsb-val { font-size: 20px; font-weight: 800; color: var(--primary); line-height: 1.1; }
+.rsb-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+[data-theme="na"] .rsb-val { color: var(--accent); }
+@media (max-width: 680px) { .recovery-stats-row { grid-template-columns: repeat(2, 1fr); } }
+
 /* ── Cards ── */
 .card {
   background: var(--surface);
@@ -953,6 +971,12 @@ textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
 }
 .sidebar-logout:hover { color: var(--danger); }
 
+.sidebar-pg-badge {
+  font-size: 10px; color: var(--text-muted); line-height: 1.4;
+  padding: 6px 12px 2px; opacity: .7;
+}
+[data-theme="na"] .sidebar-pg-badge { color: #4a7ab5; }
+
 /* ── Day Options Modal ────────────────────────────────────────────────────── */
 .day-entry-preview {
   display: flex; align-items: flex-start; gap: 10px;
@@ -1219,6 +1243,7 @@ textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
   cursor: pointer;
   transition: background .13s;
   font-size: 12px;
+  position: relative;
 }
 .mtg-card:hover { background: var(--border); }
 .mtg-card-time { font-weight: 600; color: var(--text); margin-bottom: 2px; font-size: 11px; }
@@ -1316,8 +1341,23 @@ textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
   padding: 16px;
   margin-top: 12px;
 }
-.step-detail-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
-.step-detail-desc  { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
+.step-detail-title      { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.step-detail-desc       { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
+.step-detail-completed  { font-size: 12px; color: var(--success); margin-bottom: 8px; font-weight: 600; }
+.step-detail-inprogress { font-size: 12px; color: var(--warning); margin-bottom: 8px; }
+
+.step-completed-banner {
+  background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25);
+  border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
+  font-size: 13px; color: var(--success); font-weight: 600;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.step-reopen-btn {
+  font-size: 12px; background: none; border: 1px solid var(--success);
+  border-radius: 6px; padding: 3px 10px; color: var(--success);
+  cursor: pointer; white-space: nowrap; transition: all .15s;
+}
+.step-reopen-btn:hover { background: var(--success); color: #fff; }
 
 /* Daily Tasks */
 .tasks-progress-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
@@ -1456,3 +1496,79 @@ textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
 .na-score-item.good { background: var(--success-bg, #dcfce7); color: var(--success); }
 .na-score-item.pending { background: #fef9c3; color: #a16207; }
 .na-score-item.miss { background: #fee2e2; color: var(--danger); }
+
+/* ── 90-in-90 Tracker ─────────────────────────────────────────────────────── */
+.nin-status-badge {
+  font-size: 11px; font-weight: 700; padding: 3px 9px;
+  border-radius: 20px;
+}
+.nin-stats {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.nin-stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  flex: 1; min-width: 70px;
+}
+.nin-num { font-size: 22px; font-weight: 800; line-height: 1; }
+.nin-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+.nin-bar-wrap {
+  background: var(--surface2); border-radius: 6px; height: 10px;
+  overflow: hidden; border: 1px solid var(--border); margin-bottom: 4px;
+}
+.nin-bar-fill { height: 100%; border-radius: 6px; transition: width .4s ease; }
+
+/* ── Meeting Stats Button ─────────────────────────────────────────────────── */
+.mtg-stats-btn {
+  position: absolute; top: 6px; right: 6px;
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; padding: 2px 4px; border-radius: 4px;
+  opacity: .55; transition: opacity .15s, background .15s;
+  line-height: 1;
+}
+.mtg-stats-btn:hover { opacity: 1; background: var(--surface); }
+
+/* Meeting Stats Modal Grid */
+.mtg-stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 4px 0;
+}
+.mtg-stat-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 9px; padding: 14px 10px; text-align: center;
+}
+.mtg-stat-card .mtg-stat-val { font-size: 26px; font-weight: 800; color: var(--primary); line-height: 1; margin-bottom: 4px; }
+.mtg-stat-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+
+/* ── Recovery Resources Page ──────────────────────────────────────────────── */
+.res-section { margin-bottom: 22px; }
+.res-section-title {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text-muted); margin-bottom: 10px;
+}
+.res-links-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+.res-link-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 9px; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 3px;
+  text-decoration: none; color: var(--text);
+  transition: border-color .15s, transform .12s;
+  position: relative;
+}
+.res-link-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+.res-link-icon { font-size: 18px; margin-bottom: 2px; }
+.res-link-name { font-size: 14px; font-weight: 700; }
+.res-link-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+.res-link-card.res-hotline { border-color: rgba(239,68,68,.3); }
+.res-link-card.res-hotline .res-link-name { color: var(--danger); }
+.res-link-card.res-custom { border-style: dashed; }
+.res-delete-btn {
+  position: absolute; top: 6px; right: 8px;
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; color: var(--text-muted); padding: 0;
+  opacity: .5; transition: opacity .15s, color .15s;
+}
+.res-delete-btn:hover { opacity: 1; color: var(--danger); }

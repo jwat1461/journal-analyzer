@@ -84,6 +84,36 @@ CREATE TABLE IF NOT EXISTS na_settings (
   key   TEXT PRIMARY KEY,
   value TEXT
 );
+CREATE TABLE IF NOT EXISTS na_resources (
+  id          TEXT PRIMARY KEY,
+  title       TEXT NOT NULL,
+  url         TEXT NOT NULL,
+  description TEXT,
+  category    TEXT DEFAULT 'general',
+  created_at  BIGINT DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS quit_habits (
+  id        TEXT PRIMARY KEY,
+  name      TEXT NOT NULL,
+  quit_date TEXT,
+  color     TEXT DEFAULT '#ef4444',
+  notes     TEXT,
+  created_at BIGINT DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS na_sponsees (
+  id       TEXT PRIMARY KEY,
+  name     TEXT NOT NULL,
+  phone    TEXT,
+  step     SMALLINT DEFAULT 0,
+  notes    TEXT,
+  added_at BIGINT DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS step_notes (
+  id         TEXT PRIMARY KEY,
+  step_num   SMALLINT NOT NULL,
+  content    TEXT NOT NULL,
+  created_at BIGINT DEFAULT 0
+);
 `;
 
 // ── Calendar auto-sync helper ─────────────────────────────────────────────────
@@ -756,6 +786,187 @@ app.post('/api/na/daily-tasks/:id/complete', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── NA Resources ─────────────────────────────────────────────────────────────
+app.get('/api/na/resources', requireAuth, async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM na_resources ORDER BY created_at');
+    res.json(rows.map(r => ({ id:r.id, title:r.title, url:r.url, description:r.description, category:r.category })));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/na/resources', requireAuth, async (req, res) => {
+  const { id, title, url, description, category } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO na_resources (id, title, url, description, category, created_at) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [id, title, url, description||null, category||'general', Date.now()]
+    );
+    const r = rows[0];
+    res.status(201).json({ id:r.id, title:r.title, url:r.url, description:r.description, category:r.category });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/na/resources/:id', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM na_resources WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Per-meeting attendance stats ──────────────────────────────────────────────
+app.get('/api/na/meetings/:id/stats', requireAuth, async (req, res) => {
+  const mid = req.params.id;
+  try {
+    const now = new Date();
+    const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay()); weekStart.setHours(0,0,0,0);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const fmt = d => d.toISOString().split('T')[0];
+    const [total, week, month] = await Promise.all([
+      pool.query('SELECT COUNT(*) FROM na_meeting_attendance WHERE meeting_id=$1', [mid]),
+      pool.query('SELECT COUNT(*) FROM na_meeting_attendance WHERE meeting_id=$1 AND attended_date>=$2', [mid, fmt(weekStart)]),
+      pool.query('SELECT COUNT(*) FROM na_meeting_attendance WHERE meeting_id=$1 AND attended_date>=$2', [mid, fmt(monthStart)]),
+    ]);
+    res.json({
+      total:   parseInt(total.rows[0].count),
+      thisWeek: parseInt(week.rows[0].count),
+      thisMonth: parseInt(month.rows[0].count),
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Quit Habits ───────────────────────────────────────────────────────────────
+app.get('/api/quit-habits', requireAuth, async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM quit_habits ORDER BY created_at');
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/quit-habits', requireAuth, async (req, res) => {
+  const { id, name, quit_date, color, notes } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO quit_habits (id,name,quit_date,color,notes,created_at) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [id, name, quit_date || null, color || '#ef4444', notes || null, Date.now()]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/quit-habits/:id', requireAuth, async (req, res) => {
+  const { name, quit_date, color, notes } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'UPDATE quit_habits SET name=$1,quit_date=$2,color=$3,notes=$4 WHERE id=$5 RETURNING *',
+      [name, quit_date || null, color || '#ef4444', notes || null, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/quit-habits/:id', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM quit_habits WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Sponsees ──────────────────────────────────────────────────────────────────
+app.get('/api/na/sponsees', requireAuth, async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM na_sponsees ORDER BY added_at');
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/na/sponsees', requireAuth, async (req, res) => {
+  const { id, name, phone, step, notes } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO na_sponsees (id,name,phone,step,notes,added_at) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [id, name, phone || null, step || 0, notes || null, Date.now()]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/na/sponsees/:id', requireAuth, async (req, res) => {
+  const { name, phone, step, notes } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'UPDATE na_sponsees SET name=$1,phone=$2,step=$3,notes=$4 WHERE id=$5 RETURNING *',
+      [name, phone || null, step || 0, notes || null, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/na/sponsees/:id', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM na_sponsees WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Step Notes ────────────────────────────────────────────────────────────────
+app.get('/api/na/steps/:num/notes', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM step_notes WHERE step_num=$1 ORDER BY created_at',
+      [parseInt(req.params.num)]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/na/steps/:num/notes', requireAuth, async (req, res) => {
+  const { id, content } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO step_notes (id,step_num,content,created_at) VALUES ($1,$2,$3,$4) RETURNING *',
+      [id, parseInt(req.params.num), content, Date.now()]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/na/steps/:num/notes/:id', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM step_notes WHERE id=$1 AND step_num=$2', [req.params.id, parseInt(req.params.num)]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Profile Picture ───────────────────────────────────────────────────────────
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    if (!fs.existsSync(UPLOADS)) fs.mkdirSync(UPLOADS, { recursive: true });
+    cb(null, UPLOADS);
+  },
+  filename: (_req, _file, cb) => cb(null, 'avatar.jpg'),
+});
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, file.mimetype.startsWith('image/')),
+});
+
+app.post('/api/profile/picture', requireAuth, avatarUpload.single('avatar'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+  res.json({ url: '/uploads/avatar.jpg?t=' + Date.now() });
+});
+
+app.delete('/api/profile/picture', requireAuth, (_req, res) => {
+  const f = path.join(UPLOADS, 'avatar.jpg');
+  if (fs.existsSync(f)) fs.unlinkSync(f);
+  res.json({ ok: true });
+});
+
+app.get('/api/profile', requireAuth, (_req, res) => {
+  const f = path.join(UPLOADS, 'avatar.jpg');
+  res.json({ avatarUrl: fs.existsSync(f) ? '/uploads/avatar.jpg' : null });
+});
+
 const PORT = process.env.PORT || 3001;
 
 async function startServer() {
@@ -798,7 +1009,7 @@ async function startServer() {
   }
 
   app.listen(PORT, () => {
-    console.log(`AI Journal Analyzer + NAS running at http://localhost:${PORT}`);
+    console.log(`AI Recovery Tracker running at http://localhost:${PORT}`);
   });
 }
 

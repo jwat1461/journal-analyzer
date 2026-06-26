@@ -1,7 +1,7 @@
 {
-  "name": "journal-analyzer-nas",
+  "name": "ai-recovery-tracker",
   "version": "2.0.0",
-  "description": "AI Journal Analyzer + NAS — unified personal productivity app by WATSON TECH",
+  "description": "AI Recovery Tracker — NA recovery suite + journaling by WATSON TECH",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

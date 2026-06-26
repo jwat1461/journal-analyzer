@@ -35,6 +35,16 @@ let editingMeetingId  = null;
 let selectedMtgColor  = '#6366f1';
 let openStepNumber    = null;
 
+// Phase 3 state
+let naProgram     = 'NA';
+let avatarUrl     = null;
+let quitHabits    = [];
+let naSponsees    = [];
+let editingQhId   = null;
+let editingSponseeId = null;
+let selectedQhColor  = '#ef4444';
+let currentStepNotes = [];
+
 const NA_STEP_TITLES = [
   'Powerless & Unmanageable',
   'Power Greater Than Ourselves',
@@ -322,6 +332,7 @@ function renderAll() {
   renderStats();
   renderHeatmap();
   renderSobrietyCounter();
+  renderRecoveryStatsRow();
   renderRecoveryToday();
   renderDashCalPreview();
   renderRecentEntries();
@@ -350,9 +361,10 @@ function switchTab(tab) {
   if (tab === 'insights') setTimeout(renderCharts, 30);
   if (tab === 'habits')   renderHabitsTab();
   if (tab === 'calendar') loadCalendarEvents();
-  if (tab === 'meetings') renderMeetingsTab();
-  if (tab === 'sponsor')  renderSponsorTab();
-  if (tab === 'files')    loadFiles();
+  if (tab === 'meetings')  renderMeetingsTab();
+  if (tab === 'sponsor')   renderSponsorTab();
+  if (tab === 'files')     loadFiles();
+  if (tab === 'resources') renderResourcesTab();
 }
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
@@ -438,20 +450,30 @@ function renderDashCalPreview() {
 // ── NA Data Loading ───────────────────────────────────────────────────────────
 async function loadNAData() {
   try {
-    const [settings, mtgs, att, sponsor, steps, tasks] = await Promise.all([
+    const [settings, mtgs, att, sponsor, steps, tasks, resources, qh, sponsees, profile] = await Promise.all([
       api('GET', '/api/na/settings'),
       api('GET', '/api/na/meetings'),
       api('GET', '/api/na/meetings/attendance'),
       api('GET', '/api/na/sponsor'),
       api('GET', '/api/na/steps'),
       api('GET', '/api/na/daily-tasks'),
+      api('GET', '/api/na/resources'),
+      api('GET', '/api/quit-habits'),
+      api('GET', '/api/na/sponsees'),
+      api('GET', '/api/profile'),
     ]);
     sobrietyDate      = settings.sobriety_date || null;
+    nin90StartDate    = settings.nin90_start   || null;
+    naProgram         = settings.program       || 'NA';
     naMeetings        = mtgs;
     naAttendanceDates = att;
     naSponsor         = sponsor;
     naSteps           = steps;
     naDailyTasks      = tasks;
+    naResources       = resources;
+    quitHabits        = qh;
+    naSponsees        = sponsees;
+    avatarUrl         = profile.avatarUrl || null;
 
     // One-time migration: move sobriety date from localStorage → PostgreSQL
     const legacyDate = localStorage.getItem('ja_sobriety_date');
@@ -460,11 +482,46 @@ async function loadNAData() {
       sobrietyDate = legacyDate;
       localStorage.removeItem('ja_sobriety_date');
     }
+
+    applyProgram(naProgram);
+    renderAvatarSidebar();
   } catch {
-    sobrietyDate = null;
+    sobrietyDate = null; nin90StartDate = null;
     naMeetings = []; naAttendanceDates = []; naSponsor = null;
-    naSteps = []; naDailyTasks = [];
+    naSteps = []; naDailyTasks = []; naResources = [];
+    quitHabits = []; naSponsees = [];
   }
+}
+
+// ── Recovery Stats Row (below journal stats, above sobriety counter) ─────────
+function renderRecoveryStatsRow() {
+  const row = document.getElementById('recoveryStatsRow');
+  if (!row) return;
+
+  const hasAny = sobrietyDate || naMeetings.length || naDailyTasks.length || naSteps.some(s => s.completedAt);
+  row.style.display = hasAny ? '' : 'none';
+  if (!hasAny) return;
+
+  // Days clean
+  const sob = sobrietyDate ? calcSobriety() : null;
+  document.getElementById('rsbDaysClean').textContent = sob ? sob.totalDays.toLocaleString() : '—';
+
+  // Meetings attended this week (Sun–Sat)
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay()); weekStart.setHours(0,0,0,0);
+  const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth()+1).padStart(2,'0')}-${String(weekStart.getDate()).padStart(2,'0')}`;
+  const mtgsThisWeek = naAttendanceDates.filter(d => d >= weekStartStr).length;
+  document.getElementById('rsbMtgsWeek').textContent = mtgsThisWeek;
+
+  // Step progress
+  const done = naSteps.filter(s => s.completedAt).length;
+  document.getElementById('rsbStepProgress').textContent = `${done}/12`;
+
+  // Daily tasks %
+  const total = naDailyTasks.length;
+  const completed = naDailyTasks.filter(t => t.completedToday).length;
+  const pct = total ? Math.round((completed / total) * 100) : 0;
+  document.getElementById('rsbTaskPct').textContent = total ? `${pct}%` : '—';
 }
 
 // ── Recovery Today Dashboard Widget ──────────────────────────────────────────
@@ -497,12 +554,10 @@ function renderRecoveryToday() {
   const stepStatus = completedSteps > 0 ? COL_GREEN : COL_YELLOW;
   const taskStatus = totalTasks === 0 ? COL_GRAY : taskPct === 100 ? COL_GREEN : taskPct > 0 ? COL_YELLOW : COL_RED;
 
-  // Recovery score
+  // Recovery score: Meetings 30pts + Daily Tasks 70pts
   let score = 0;
   if (todayMtgs.length === 0 || todayMtgs.some(m => m.attendedToday)) score += 30;
-  score += Math.round(taskPct * 0.5);
-  if (completedSteps > 0) score += 10;
-  if (currentStep > 1) score += 10;
+  score += Math.round(taskPct * 0.7);
   const scoreColor = score >= 80 ? COL_GREEN : score >= 50 ? COL_YELLOW : COL_RED;
 
   // Motivational quote — deterministic by day of year
@@ -592,17 +647,21 @@ function renderRecoveryToday() {
     </div>
     <div class="na-score-track"><div class="na-score-fill" style="width:${score}%;background:${scoreColor}"></div></div>
     <div class="na-score-breakdown">
-      <span class="na-score-item ${todayMtgs.length === 0 || todayMtgs.some(m => m.attendedToday) ? 'good' : 'pending'}">🤝 Meetings</span>
-      <span class="na-score-item ${taskPct === 100 ? 'good' : taskPct > 0 ? 'pending' : 'miss'}">✅ Tasks ${taskPct}%</span>
-      <span class="na-score-item ${completedSteps > 0 ? 'good' : 'pending'}">📖 Steps ${completedSteps}/12</span>
+      <span class="na-score-item ${todayMtgs.length === 0 || todayMtgs.some(m => m.attendedToday) ? 'good' : 'pending'}">🤝 Meetings (30)</span>
+      <span class="na-score-item ${taskPct === 100 ? 'good' : taskPct > 0 ? 'pending' : 'miss'}">✅ Tasks ${taskPct}% (70)</span>
     </div>
   `;
 }
 
 async function rtToggleAttend(id, attended) {
   try {
-    await api('POST', `/api/na/meetings/${id}/attend`, { attended });
+    const result = await api('POST', `/api/na/meetings/${id}/attend`, { attended });
     naMeetings = naMeetings.map(m => m.id === id ? { ...m, attendedToday: attended } : m);
+    if (attended) {
+      const today = new Date(); const d = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+      if (!naAttendanceDates.includes(d)) naAttendanceDates = [...naAttendanceDates, d];
+    }
+    renderRecoveryStatsRow();
     renderRecoveryToday();
     if (document.getElementById('tab-meetings').classList.contains('active')) renderMeetingsTab();
   } catch (err) { showToast('Failed to update: ' + err.message, 'error'); }
@@ -612,6 +671,7 @@ async function rtToggleTask(id, completed) {
   try {
     await api('POST', `/api/na/daily-tasks/${id}/complete`, { completed });
     naDailyTasks = naDailyTasks.map(t => t.id === id ? { ...t, completedToday: completed } : t);
+    renderRecoveryStatsRow();
     renderRecoveryToday();
     if (document.getElementById('tab-sponsor').classList.contains('active')) renderSponsorTab();
   } catch (err) { showToast('Failed to update: ' + err.message, 'error'); }
@@ -620,6 +680,7 @@ async function rtToggleTask(id, completed) {
 // ── Meetings Tab ──────────────────────────────────────────────────────────────
 function renderMeetingsTab() {
   renderMeetingsStats();
+  renderNin90();
   renderMeetingsWeek();
 }
 
@@ -688,6 +749,10 @@ function renderMeetingsWeek() {
           <button class="mtg-attend-btn ${m.attendedToday ? 'attended' : ''}"
             onclick="event.stopPropagation();toggleAttendance('${m.id}',${!m.attendedToday})">
             ${m.attendedToday ? '✓ Attended' : 'Mark Attended'}
+          </button>
+          <button class="mtg-stats-btn" title="View attendance stats"
+            onclick="event.stopPropagation();showMeetingStatsModal('${m.id}','${escHtml(m.name).replace(/'/g,"\\'")}')">
+            📊
           </button>
         </div>`;
     }).join('');
@@ -758,6 +823,7 @@ async function saveMeeting() {
     recurring:      document.getElementById('mtgRecurring').checked,
     color:          selectedMtgColor,
   };
+  const addToCal = document.getElementById('mtgAddToCalendar')?.checked;
   try {
     if (editingMeetingId) {
       const updated = await api('PUT', `/api/na/meetings/${editingMeetingId}`, body);
@@ -767,12 +833,36 @@ async function saveMeeting() {
       body.id = `mtg-${Date.now()}`;
       const created = await api('POST', '/api/na/meetings', body);
       naMeetings.push(created);
+      if (addToCal) await syncMeetingToCalendar(body);
       showToast('Meeting added! 🤝', 'success');
     }
     closeMeetingModal();
     renderMeetingsTab();
     renderRecoveryToday();
   } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+async function syncMeetingToCalendar(mtg) {
+  const weeks = mtg.recurring ? 8 : 1;
+  const now = new Date();
+  // Find next occurrence of dayOfWeek
+  const diff = (mtg.dayOfWeek - now.getDay() + 7) % 7 || 7;
+  const first = new Date(now); first.setDate(now.getDate() + diff); first.setHours(0,0,0,0);
+  const [h, m] = mtg.meetingTime ? mtg.meetingTime.split(':').map(Number) : [0, 0];
+  const promises = [];
+  for (let w = 0; w < weeks; w++) {
+    const d = new Date(first); d.setDate(first.getDate() + w * 7);
+    const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const startTime = `${ymd}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
+    const endTime   = `${ymd}T${String(h + 1).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
+    promises.push(api('POST', '/api/calendar-events', {
+      title: `🤝 ${mtg.name}`,
+      description: mtg.location ? `📍 ${mtg.location}` : null,
+      startTime, endTime, allDay: false, color: mtg.color || '#6366f1',
+    }));
+  }
+  await Promise.all(promises);
+  if (weeks > 1) showToast(`Added ${weeks} calendar events`, 'success');
 }
 
 async function deleteMeeting() {
@@ -805,6 +895,8 @@ function renderSponsorTab() {
   renderSponsorProfile();
   renderStepsGrid();
   renderDailyTasks();
+  renderQuitHabits();
+  renderSponsees();
 }
 
 function renderSponsorProfile() {
@@ -900,9 +992,32 @@ function openStepModal(num) {
   document.getElementById('stepModalTitle').textContent = `Step ${num}: ${NA_STEP_TITLES[num-1]}`;
   document.getElementById('stepModalDesc').textContent  = NA_STEP_DESC[num-1];
   document.getElementById('stepNotes').value            = step.notes || '';
-  document.getElementById('stepCompleted').checked      = !!step.completedAt;
+
+  const isDone = !!step.completedAt;
+  document.getElementById('stepCompleted').checked = isDone;
+
+  const banner = document.getElementById('stepCompletedBanner');
+  const label  = document.getElementById('stepCompleteLabel');
+  if (isDone) {
+    const ts = new Date(step.completedAt);
+    document.getElementById('stepCompletedDate').textContent =
+      ts.toLocaleDateString(undefined, { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+    banner.style.display = '';
+    label.style.display  = 'none';
+  } else {
+    banner.style.display = 'none';
+    label.style.display  = '';
+  }
+
   document.getElementById('stepModal').classList.add('open');
   setTimeout(() => document.getElementById('stepNotes').focus(), 50);
+}
+
+function stepReopenToggle() {
+  document.getElementById('stepCompleted').checked = false;
+  document.getElementById('stepCompletedBanner').style.display = 'none';
+  document.getElementById('stepCompleteLabel').style.display   = '';
+  showToast('Step reopened — save to confirm', 'success');
 }
 
 function closeStepModal(e) {
@@ -915,12 +1030,15 @@ function renderStepDetail(num) {
   if (!panel) return;
   const step = naSteps.find(s => s.stepNumber === num);
   if (!step?.notes && !step?.completedAt) { panel.innerHTML = ''; return; }
+  const ts = step.completedAt ? new Date(step.completedAt).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }) : null;
   panel.innerHTML = `
     <div class="step-detail-panel">
       <div class="step-detail-title">Step ${num} — ${NA_STEP_TITLES[num-1]}</div>
-      ${step.completedAt ? `<div style="font-size:12px;color:var(--success);margin-bottom:8px">✓ Completed ${new Date(step.completedAt).toLocaleDateString()}</div>` : ''}
+      ${ts ? `<div class="step-detail-completed">✅ Completed ${ts}</div>` : '<div class="step-detail-inprogress">🔄 In Progress</div>'}
       ${step.notes ? `<div class="step-detail-desc">${escHtml(step.notes)}</div>` : ''}
-      <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" onclick="openStepModal(${num})">✏️ Edit Notes</button>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px" onclick="openStepModal(${num})">✏️ ${step.completedAt ? 'Edit / Reopen' : 'Edit Notes'}</button>
+      </div>
     </div>`;
 }
 
@@ -1017,6 +1135,183 @@ async function saveNewTask() {
     renderRecoveryToday();
     showToast('Task added!', 'success');
   } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+// ── 90-in-90 Tracker ─────────────────────────────────────────────────────────
+let nin90StartDate = null;
+
+async function loadNin90() {
+  const s = await api('GET', '/api/na/settings').catch(() => ({}));
+  nin90StartDate = s.nin90_start || null;
+}
+
+function renderNin90() {
+  const body = document.getElementById('nin90Body');
+  const badge = document.getElementById('nin90Status');
+  if (!body) return;
+
+  if (!nin90StartDate) {
+    badge.textContent = '';
+    body.innerHTML = `
+      <p style="color:var(--text-muted);font-size:14px;margin-bottom:14px">
+        Commit to attending 90 NA meetings in 90 days. Track your progress here.
+      </p>
+      <button class="btn btn-primary" onclick="startNin90()">🔥 Start 90-in-90</button>`;
+    return;
+  }
+
+  const start = new Date(nin90StartDate + 'T00:00:00');
+  const now = new Date();
+  const elapsedDays = Math.floor((now - start) / 864e5);
+  const daysLeft = Math.max(0, 90 - elapsedDays);
+  const endDate = new Date(start); endDate.setDate(start.getDate() + 90);
+
+  // Count attendance in the 90-day window
+  const startStr = nin90StartDate;
+  const endStr = endDate.toISOString().split('T')[0];
+  const attended = naAttendanceDates.filter(d => d >= startStr && d <= endStr).length;
+  const pct = Math.min(100, Math.round((attended / 90) * 100));
+  const done = attended >= 90 || elapsedDays >= 90;
+  const onTrack = attended >= elapsedDays;
+
+  badge.innerHTML = done
+    ? `<span style="color:var(--success);font-size:13px;font-weight:700">✅ Complete!</span>`
+    : onTrack
+      ? `<span style="color:var(--success);font-size:12px;font-weight:700">On Track</span>`
+      : `<span style="color:#f59e0b;font-size:12px;font-weight:700">Behind</span>`;
+
+  body.innerHTML = `
+    <div class="nin-stats">
+      <div class="nin-stat"><span class="nin-num" style="color:var(--primary)">${attended}</span><span class="nin-lbl">Attended</span></div>
+      <div class="nin-stat"><span class="nin-num" style="color:${daysLeft === 0 ? 'var(--success)' : 'var(--text)'}">${daysLeft}</span><span class="nin-lbl">Days Left</span></div>
+      <div class="nin-stat"><span class="nin-num" style="color:${onTrack ? 'var(--success)' : '#f59e0b'}">${Math.max(0,elapsedDays-attended)}</span><span class="nin-lbl">To Catch Up</span></div>
+      <div class="nin-stat"><span class="nin-num">${pct}%</span><span class="nin-lbl">Progress</span></div>
+    </div>
+    <div class="nin-bar-wrap"><div class="nin-bar-fill" style="width:${pct}%;background:${pct===100?'var(--success)':onTrack?'var(--primary)':'#f59e0b'}"></div></div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:6px">
+      Started ${start.toLocaleDateString()} · Goal: ${endDate.toLocaleDateString()}
+    </div>`;
+}
+
+async function startNin90() {
+  const today = new Date().toISOString().split('T')[0];
+  await api('PUT', '/api/na/settings', { nin90_start: today });
+  nin90StartDate = today;
+  renderNin90();
+  showToast('90-in-90 started! Keep coming back. 🔥', 'success');
+}
+
+async function resetNin90() {
+  if (!confirm('Reset your 90-in-90 tracker?')) return;
+  await api('PUT', '/api/na/settings', { nin90_start: null });
+  nin90StartDate = null;
+  renderNin90();
+  showToast('90-in-90 reset', 'success');
+}
+
+// ── Recovery Resources ────────────────────────────────────────────────────────
+let naResources = [];
+
+async function loadResources() {
+  naResources = await api('GET', '/api/na/resources').catch(() => []);
+}
+
+function renderResourcesTab() {
+  const section = document.getElementById('customLinksSection');
+  const list    = document.getElementById('customLinksList');
+  if (!list) return;
+  if (!naResources.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  list.innerHTML = naResources.map(r => `
+    <div class="res-link-card res-custom" style="position:relative">
+      <button class="res-delete-btn" onclick="deleteResource('${r.id}')" title="Remove">✕</button>
+      <span class="res-link-icon">${categoryIcon(r.category)}</span>
+      <a class="res-link-name" href="${escHtml(r.url)}" target="_blank" rel="noopener">${escHtml(r.title)}</a>
+      ${r.description ? `<span class="res-link-desc">${escHtml(r.description)}</span>` : ''}
+    </div>`).join('');
+}
+
+function categoryIcon(c) {
+  return { meeting:'🤝', literature:'📖', meditation:'🧘', hotline:'📞', local:'📍', general:'🔗' }[c] || '🔗';
+}
+
+function openAddResourceModal() {
+  ['resTitle','resUrl','resDesc'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('resCategory').value = 'general';
+  document.getElementById('addResourceModal').classList.add('open');
+  setTimeout(() => document.getElementById('resTitle').focus(), 50);
+}
+function closeAddResourceModal(e) {
+  if (e && e.target !== document.getElementById('addResourceModal')) return;
+  document.getElementById('addResourceModal').classList.remove('open');
+}
+
+async function saveCustomResource() {
+  const title = document.getElementById('resTitle').value.trim();
+  const url   = document.getElementById('resUrl').value.trim();
+  if (!title || !url) { showToast('Title and URL are required', 'error'); return; }
+  try {
+    const r = await api('POST', '/api/na/resources', {
+      id: `res-${Date.now()}`, title, url,
+      description: document.getElementById('resDesc').value.trim() || null,
+      category: document.getElementById('resCategory').value,
+    });
+    naResources.push(r);
+    closeAddResourceModal();
+    renderResourcesTab();
+    showToast('Link saved!', 'success');
+  } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+}
+
+async function deleteResource(id) {
+  if (!confirm('Remove this link?')) return;
+  await api('DELETE', `/api/na/resources/${id}`);
+  naResources = naResources.filter(r => r.id !== id);
+  renderResourcesTab();
+}
+
+// ── Per-Meeting Attendance Stats ──────────────────────────────────────────────
+async function showMeetingStatsModal(id, name) {
+  const title = document.getElementById('meetingStatsTitle');
+  const body  = document.getElementById('meetingStatsBody');
+  const modal = document.getElementById('meetingStatsModal');
+  if (!modal) return;
+  title.textContent = name + ' — Stats';
+  body.innerHTML = '<p style="color:var(--text-muted);font-size:14px">Loading…</p>';
+  modal.classList.add('open');
+  try {
+    const s = await api('GET', `/api/na/meetings/${id}/stats`);
+    body.innerHTML = `
+      <div class="mtg-stats-grid">
+        <div class="mtg-stat-card">
+          <div class="mtg-stat-val">${s.total}</div>
+          <div class="mtg-stat-lbl">Total Attended</div>
+        </div>
+        <div class="mtg-stat-card">
+          <div class="mtg-stat-val">${s.thisMonth}</div>
+          <div class="mtg-stat-lbl">This Month</div>
+        </div>
+        <div class="mtg-stat-card">
+          <div class="mtg-stat-val">${s.thisWeek}</div>
+          <div class="mtg-stat-lbl">This Week</div>
+        </div>
+        <div class="mtg-stat-card">
+          <div class="mtg-stat-val">${s.total > 0 ? '🔥' : '—'}</div>
+          <div class="mtg-stat-lbl">Keep Coming Back</div>
+        </div>
+      </div>`;
+  } catch (err) {
+    body.innerHTML = '<p style="color:var(--danger)">Could not load stats.</p>';
+  }
+}
+
+function closeMeetingStatsModal(e) {
+  if (e && e.target !== document.getElementById('meetingStatsModal')) return;
+  document.getElementById('meetingStatsModal').classList.remove('open');
+}
+
+async function showMeetingStats(id, name) {
+  showMeetingStatsModal(id, name);
 }
 
 // ── Sobriety Counter ──────────────────────────────────────────────────────────
@@ -2004,7 +2299,7 @@ Be concise, warm, and grounded in what they actually wrote — no generic advice
     document.getElementById('aiLoading').style.display = 'none';
     const isNetworkErr = err instanceof TypeError;
     const msg = isNetworkErr
-      ? `Cannot reach the proxy server — run <code>npm start</code> in the Journal Analyzer folder, then try again.`
+      ? `Cannot reach the proxy server — run <code>npm start</code> in the AI Recovery Tracker folder, then try again.`
       : err.message;
     document.getElementById('aiInsightsContent').innerHTML = `
       <p style="color:var(--danger);font-size:14px">Error: ${escHtml(msg)}</p>
