@@ -3132,25 +3132,21 @@ function renderAvatarSidebar() {
   }
 }
 
-async function uploadAvatar(input) {
+function uploadAvatar(input) {
   const file = input.files[0];
   if (!file) return;
-  const form = new FormData();
-  form.append('avatar', file);
-  try {
-    const token = localStorage.getItem('ja_token');
-    const res = await fetch('/api/profile/picture', {
-      method: 'POST',
-      headers: token ? { Authorization: 'Bearer ' + token } : {},
-      body: form,
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Upload failed');
-    avatarUrl = data.url;
-    renderAvatarSidebar();
-    showToast('Profile picture updated!', 'success');
-  } catch (err) { showToast('Upload failed: ' + err.message, 'error'); }
-  input.value = '';
+  if (!file.type.startsWith('image/')) { showToast('Please select an image file', 'error'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const res = await api('POST', '/api/profile/picture', { image: e.target.result });
+      avatarUrl = res.url;
+      renderAvatarSidebar();
+      showToast('Profile picture updated!', 'success');
+    } catch (err) { showToast('Upload failed: ' + err.message, 'error'); }
+    input.value = '';
+  };
+  reader.readAsDataURL(file);
 }
 
 // ── Quit Habits ───────────────────────────────────────────────────────────────

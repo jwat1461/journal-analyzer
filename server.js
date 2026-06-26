@@ -938,22 +938,19 @@ app.delete('/api/na/steps/:num/notes/:id', requireAuth, async (req, res) => {
 });
 
 // ── Profile Picture ───────────────────────────────────────────────────────────
-const avatarStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
+app.post('/api/profile/picture', requireAuth, async (req, res) => {
+  const { image } = req.body;
+  if (!image || !image.startsWith('data:image/')) return res.status(400).json({ error: 'Invalid image' });
+  try {
+    const base64 = image.replace(/^data:image\/[^;]+;base64,/, '');
+    const buf = Buffer.from(base64, 'base64');
+    if (buf.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'Image too large (max 5 MB)' });
     if (!fs.existsSync(UPLOADS)) fs.mkdirSync(UPLOADS, { recursive: true });
-    cb(null, UPLOADS);
-  },
-  filename: (_req, _file, cb) => cb(null, 'avatar.jpg'),
-});
-const avatarUpload = multer({
-  storage: avatarStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => cb(null, file.mimetype.startsWith('image/')),
-});
-
-app.post('/api/profile/picture', requireAuth, avatarUpload.single('avatar'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
-  res.json({ url: '/uploads/avatar.jpg?t=' + Date.now() });
+    fs.writeFileSync(path.join(UPLOADS, 'avatar.jpg'), buf);
+    res.json({ url: '/uploads/avatar.jpg?t=' + Date.now() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.delete('/api/profile/picture', requireAuth, (_req, res) => {
