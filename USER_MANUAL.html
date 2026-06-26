@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Journal Analyzer — User Manual</title>
+<title>AI Recovery Tracker — User Manual</title>
 <style>
   :root {
     --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
@@ -15,24 +15,21 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg); color: var(--text); line-height: 1.7; }
 
-  /* Layout */
   .wrapper { display: flex; min-height: 100vh; }
-  nav { width: 260px; background: var(--surface); border-right: 1px solid var(--border);
+  nav { width: 270px; background: var(--surface); border-right: 1px solid var(--border);
     position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; padding: 24px 0; }
   main { flex: 1; max-width: 900px; padding: 40px 48px; overflow-x: hidden; }
 
-  /* Nav */
   .nav-logo { padding: 0 20px 24px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-  .nav-logo h1 { font-size: 16px; font-weight: 700; color: var(--text); }
+  .nav-logo h1 { font-size: 15px; font-weight: 700; color: var(--text); }
   .nav-logo p { font-size: 11px; color: var(--muted); margin-top: 2px; }
   nav a { display: block; padding: 7px 20px; font-size: 13px; color: var(--muted);
-    text-decoration: none; border-radius: 0; transition: all .15s; }
+    text-decoration: none; transition: all .15s; }
   nav a:hover, nav a.active { background: var(--surface2); color: var(--text); }
   nav a.section-head { font-size: 10px; font-weight: 700; text-transform: uppercase;
     letter-spacing: .08em; color: var(--muted); padding: 16px 20px 4px; cursor: default; }
   nav a.section-head:hover { background: none; color: var(--muted); }
 
-  /* Typography */
   h1.page-title { font-size: 32px; font-weight: 800; margin-bottom: 6px; }
   .page-subtitle { color: var(--muted); font-size: 15px; margin-bottom: 40px; }
   h2 { font-size: 22px; font-weight: 700; margin: 48px 0 14px; padding-top: 48px;
@@ -43,8 +40,8 @@
   ul, ol { padding-left: 20px; margin-bottom: 14px; }
   li { font-size: 15px; color: #c9d1d9; margin-bottom: 5px; }
   strong { color: var(--text); }
+  code { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 13px; font-family: monospace; }
 
-  /* Screenshot */
   .screenshot { width: 100%; border-radius: 12px; border: 1px solid var(--border);
     box-shadow: 0 8px 32px rgba(0,0,0,.5); margin: 16px 0 24px; display: block; }
   .screenshot-caption { font-size: 12px; color: var(--muted); text-align: center;
@@ -53,7 +50,6 @@
   .screenshot-row img { width: 100%; border-radius: 10px; border: 1px solid var(--border);
     box-shadow: 0 4px 16px rgba(0,0,0,.4); }
 
-  /* Callout boxes */
   .callout { border-radius: 10px; padding: 14px 18px; margin: 16px 0 20px;
     border-left: 4px solid; font-size: 14px; }
   .callout.tip { background: rgba(99,102,241,.1); border-color: var(--primary); }
@@ -67,7 +63,6 @@
   .callout.warning .callout-title { color: var(--danger); }
   .callout.success .callout-title { color: var(--accent); }
 
-  /* Feature grid */
   .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0 24px; }
   .feature-card { background: var(--surface2); border-radius: 10px; padding: 16px 18px;
     border: 1px solid var(--border); }
@@ -75,16 +70,13 @@
   .feature-card strong { font-size: 14px; display: block; margin-bottom: 4px; }
   .feature-card p { font-size: 13px; color: var(--muted); margin: 0; }
 
-  /* Step list */
   .steps { counter-reset: steps; list-style: none; padding: 0; margin: 16px 0; }
-  .steps li { counter-increment: steps; display: flex; gap: 14px; margin-bottom: 14px;
-    align-items: flex-start; }
+  .steps li { counter-increment: steps; display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start; }
   .steps li::before { content: counter(steps); background: var(--primary); color: #fff;
     width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center;
     justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
   .steps li span { font-size: 15px; color: #c9d1d9; padding-top: 2px; }
 
-  /* Shortcut table */
   table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 14px; }
   th { text-align: left; padding: 10px 14px; background: var(--surface2);
     color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
@@ -93,7 +85,6 @@
   kbd { background: var(--surface2); border: 1px solid var(--border); border-radius: 5px;
     padding: 2px 7px; font-size: 12px; font-family: monospace; color: var(--text); }
 
-  /* TOC */
   .toc { background: var(--surface2); border-radius: 12px; padding: 20px 24px;
     margin-bottom: 40px; border: 1px solid var(--border); }
   .toc h3 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase;
@@ -103,21 +94,19 @@
   .toc a { color: var(--primary); text-decoration: none; font-size: 14px; }
   .toc a:hover { text-decoration: underline; }
 
-  /* Hero */
   .hero { background: linear-gradient(135deg, #0c1928 0%, #06101e 100%);
-    border-radius: 16px; padding: 40px; margin-bottom: 40px;
-    border: 1px solid #183050; }
+    border-radius: 16px; padding: 40px; margin-bottom: 40px; border: 1px solid #183050; }
   .hero h1 { font-size: 28px; color: #ddeaff; margin-bottom: 8px; }
   .hero p { color: #6b90bf; font-size: 15px; margin: 0; }
   .hero .badge { display: inline-block; background: rgba(29,95,184,.25); color: #7eb3f5;
     border: 1px solid rgba(29,95,184,.4); border-radius: 20px; padding: 4px 12px;
     font-size: 12px; font-weight: 600; margin-top: 14px; }
 
-  /* Inline badge */
   .badge-inline { display: inline-block; padding: 1px 8px; border-radius: 10px;
     font-size: 12px; font-weight: 600; vertical-align: middle; }
-  .badge-new { background: rgba(99,102,241,.2); color: var(--primary); }
-  .badge-na { background: rgba(232,160,32,.2); color: var(--gold); }
+  .badge-new  { background: rgba(99,102,241,.2); color: var(--primary); }
+  .badge-na   { background: rgba(232,160,32,.2); color: var(--gold); }
+  .badge-p3   { background: rgba(34,197,94,.18); color: var(--accent); }
 
   @media (max-width: 800px) {
     nav { display: none; }
@@ -132,15 +121,16 @@
 <!-- ── Sidebar Nav ── -->
 <nav>
   <div class="nav-logo">
-    <h1>📓 AI Journal Analyzer</h1>
-    <p>User Manual · v2.0</p>
+    <h1>💙 AI Recovery Tracker</h1>
+    <p>User Manual · v3.0 · Watson Tech</p>
   </div>
   <a class="section-head">Getting Started</a>
   <a href="#overview">Overview</a>
   <a href="#navigation">Navigation</a>
+  <a href="#profile">Profile &amp; Program</a>
   <a href="#themes">Themes</a>
 
-  <a class="section-head">Core Features</a>
+  <a class="section-head">Journaling</a>
   <a href="#dashboard">Dashboard</a>
   <a href="#add-entry">Add Entry</a>
   <a href="#entries">Entries</a>
@@ -148,498 +138,509 @@
   <a href="#calendar">Calendar</a>
   <a href="#insights">Insights</a>
   <a href="#files">Files</a>
-  <a href="#settings">Settings</a>
 
-  <a class="section-head">NA Recovery Tools</a>
+  <a class="section-head">Recovery Suite</a>
   <a href="#sobriety">Sobriety Counter</a>
   <a href="#na-dashboard">Recovery Dashboard</a>
-  <a href="#meetings">Meetings</a>
-  <a href="#sponsor">Sponsor & Steps</a>
+  <a href="#meetings">Meetings &amp; 90-in-90</a>
+  <a href="#sponsor">Sponsor &amp; Steps</a>
+  <a href="#step-notes">Step Notes</a>
   <a href="#daily-tasks">Daily Tasks</a>
+  <a href="#quit-habits">Quit Habits</a>
+  <a href="#sponsees">Sponsee Tracking</a>
+  <a href="#resources">Resources</a>
 </nav>
 
-<!-- ── Main Content ── -->
+<!-- ── Main ── -->
 <main>
 
   <div class="hero">
-    <h1>💙 AI Journal Analyzer — User Manual</h1>
-    <p>A personal journaling platform with habit tracking, AI insights, a full calendar, and a complete NA Recovery toolkit — all saved to your private PostgreSQL database.</p>
-    <span class="badge">Version 2.0 · Watson Tech</span>
+    <h1>💙 AI Recovery Tracker — User Manual</h1>
+    <p>A private, self-hosted recovery platform with journaling, habit tracking, AI insights, a full calendar, and a complete NA/AA/CA/SA/GA recovery toolkit — all saved to your personal PostgreSQL database.</p>
+    <span class="badge">Version 3.0 · Watson Tech · June 2026</span>
   </div>
 
   <div class="toc">
     <h3>Table of Contents</h3>
     <ol>
       <li><a href="#overview">Overview</a></li>
+      <li><a href="#navigation">Navigation</a></li>
+      <li><a href="#profile">Profile &amp; Program</a></li>
       <li><a href="#dashboard">Dashboard</a></li>
       <li><a href="#add-entry">Add Entry</a></li>
-      <li><a href="#entries">Entries</a></li>
       <li><a href="#habits">Habits</a></li>
       <li><a href="#calendar">Calendar</a></li>
-      <li><a href="#insights">Insights &amp; Charts</a></li>
-      <li><a href="#files">Files</a></li>
-      <li><a href="#settings">Settings</a></li>
       <li><a href="#sobriety">Sobriety Counter</a></li>
-      <li><a href="#na-dashboard">NA Recovery Dashboard</a></li>
-      <li><a href="#meetings">NA Meetings</a></li>
+      <li><a href="#na-dashboard">Recovery Dashboard</a></li>
+      <li><a href="#meetings">Meetings &amp; 90-in-90</a></li>
       <li><a href="#sponsor">Sponsor &amp; 12 Steps</a></li>
+      <li><a href="#step-notes">Step Notes</a></li>
       <li><a href="#daily-tasks">Daily Tasks</a></li>
+      <li><a href="#quit-habits">Quit Habits Tracker</a></li>
+      <li><a href="#sponsees">Sponsee Tracking</a></li>
+      <li><a href="#resources">Resources Page</a></li>
     </ol>
   </div>
 
   <!-- ══════════════════════════════════════════ -->
   <h2 id="overview">Overview</h2>
-  <p>AI Journal Analyzer is a self-hosted web application that runs at <strong>http://localhost:3001</strong>. Everything is stored in a private PostgreSQL database — no cloud, no data sharing. The app has two major sections:</p>
+  <p><strong>AI Recovery Tracker</strong> is a self-hosted web application running at <strong>http://localhost:3001</strong>. All data is stored in a private PostgreSQL database — no cloud, no tracking, no data sharing. It has three integrated suites:</p>
 
   <div class="feature-grid">
     <div class="feature-card">
       <div class="icon">📝</div>
       <strong>Journaling Suite</strong>
-      <p>Write daily entries, attach moods, track habits, browse a calendar, and get AI-powered writing insights.</p>
+      <p>Daily entries, mood tracking, habit grid, AI insights, file manager, and calendar integration.</p>
     </div>
     <div class="feature-card">
       <div class="icon">💙</div>
-      <strong>NA Recovery Tools</strong>
-      <p>Sobriety counter, meeting tracker, sponsor management, 12-step progress, and daily recovery tasks.</p>
+      <strong>Recovery Suite</strong>
+      <p>Sobriety counter, meeting tracker, 90-in-90, sponsor tools, 12-step progress with timestamped notes, daily tasks, and quit habits.</p>
     </div>
     <div class="feature-card">
-      <div class="icon">📊</div>
-      <strong>Analytics</strong>
-      <p>Charts for entry frequency, mood trends, writing patterns, and words written over time.</p>
+      <div class="icon">🤲</div>
+      <strong>Sponsor Dashboard</strong>
+      <p>Track your sponsees — step progress, contact info, notes — all in one private place.</p>
     </div>
     <div class="feature-card">
-      <div class="icon">📁</div>
-      <strong>File Storage</strong>
-      <p>Upload and organise files and photos in a folder-based file manager linked to your journal.</p>
+      <div class="icon">🔗</div>
+      <strong>Resources Page</strong>
+      <p>Built-in links to NA.org, AA.org, SAMHSA, 988 Lifeline, and more. Add your own custom links.</p>
     </div>
   </div>
 
   <!-- ══════════════════════════════════════════ -->
   <h2 id="navigation">Navigation</h2>
-  <p>The left sidebar contains every section of the app. Click any nav item to switch instantly — no page reloads. The active tab is highlighted in purple.</p>
+  <p>The left sidebar contains every section of the app. Click any nav item to switch instantly — no page reloads.</p>
 
   <table>
     <tr><th>Nav Item</th><th>What it does</th></tr>
-    <tr><td>🏠 Dashboard</td><td>Stats, sobriety counter, NA recovery preview, activity heatmap</td></tr>
+    <tr><td>🏠 Dashboard</td><td>Stats bar, sobriety counter, recovery preview cards, heatmap</td></tr>
     <tr><td>✏️ Add Entry</td><td>Write a new journal entry with mood, habits, and tags</td></tr>
     <tr><td>📋 Entries</td><td>Browse, search, and edit all past journal entries</td></tr>
-    <tr><td>🎯 Habits</td><td>30-day habit grid — check off today's habits</td></tr>
+    <tr><td>🎯 Habits</td><td>30-day habit grid — check off today's positive habits</td></tr>
     <tr><td>📅 Calendar</td><td>Monthly calendar with events and journal entry markers</td></tr>
-    <tr><td>🤝 Meetings</td><td>NA meeting weekly grid with attendance tracking</td></tr>
-    <tr><td>👤 Sponsor</td><td>Sponsor profile, 12-step progress, daily recovery tasks</td></tr>
+    <tr><td>🤝 Meetings</td><td>Weekly meeting grid, attendance tracking, 90-in-90 tracker</td></tr>
+    <tr><td>👤 Sponsor</td><td>Sponsor profile, 12-step grid, step notes, daily tasks, quit habits, sponsees</td></tr>
     <tr><td>📁 Files</td><td>Upload and organise files and folders</td></tr>
     <tr><td>📊 Insights</td><td>AI analysis and writing charts</td></tr>
+    <tr><td>🔗 Resources</td><td>Recovery websites, crisis hotlines, and custom links</td></tr>
     <tr><td>⚙️ Settings</td><td>Manage habits and Claude AI key</td></tr>
   </table>
 
   <!-- ══════════════════════════════════════════ -->
-  <h2 id="themes">Themes</h2>
-  <p>Click the theme toggle button (top-right of any page) to cycle through three visual themes:</p>
+  <h2 id="profile">Profile &amp; Program Selector <span class="badge-inline badge-p3">New v3</span></h2>
 
+  <p>The top of the sidebar has two new personalisation features:</p>
+
+  <h3>Profile Picture</h3>
+  <p>The circular avatar at the top-left of the sidebar shows your profile picture. By default it shows the app emoji (📓). To change it:</p>
+  <ol class="steps">
+    <li><span>Click (or tap) the avatar circle — a 📷 overlay appears on hover.</span></li>
+    <li><span>Your file picker opens. Select any image file (JPG, PNG, HEIC, etc.).</span></li>
+    <li><span>The image uploads immediately and replaces the emoji avatar.</span></li>
+  </ol>
+  <p>Your avatar is stored on the server at <code>uploads/avatar.jpg</code> and persists across browser sessions. To remove it, use the server directly to delete the file.</p>
+
+  <h3>Program Selector</h3>
+  <p>Below the sidebar brand name is a dropdown to choose your recovery program. This updates the sidebar branding throughout the app:</p>
+  <table>
+    <tr><th>Option</th><th>Program</th><th>Sidebar shows</th></tr>
+    <tr><td>NA</td><td>Narcotics Anonymous</td><td>NA Recovery / Tracker</td></tr>
+    <tr><td>AA</td><td>Alcoholics Anonymous</td><td>AA Recovery / Tracker</td></tr>
+    <tr><td>CA</td><td>Cocaine Anonymous</td><td>CA Recovery / Tracker</td></tr>
+    <tr><td>SA</td><td>Sexaholics Anonymous</td><td>SA Recovery / Tracker</td></tr>
+    <tr><td>GA</td><td>Gamblers Anonymous</td><td>GA Recovery / Tracker</td></tr>
+    <tr><td>SMART</td><td>SMART Recovery</td><td>SMART / Recovery</td></tr>
+    <tr><td>OTHER</td><td>Custom / Other</td><td>AI Recovery / Tracker</td></tr>
+  </table>
+  <p>Your selection is saved to the database and restored each time you open the app.</p>
+
+  <!-- ══════════════════════════════════════════ -->
+  <h2 id="themes">Themes</h2>
+  <p>Click the theme toggle button (bottom of the sidebar) to cycle through three visual themes:</p>
   <table>
     <tr><th>Icon</th><th>Theme</th><th>Description</th></tr>
-    <tr><td>☀️</td><td>Dark Mode</td><td>Default deep-navy dark theme — easy on the eyes</td></tr>
-    <tr><td>🌙</td><td>Light Mode</td><td>Clean white/slate light theme</td></tr>
+    <tr><td>🌙</td><td>Dark Mode</td><td>Default deep-navy dark theme — easy on the eyes</td></tr>
+    <tr><td>☀️</td><td>Light Mode</td><td>Clean white/slate light theme</td></tr>
     <tr><td>💙</td><td>NA Recovery Theme</td><td>Deep navy + gold accent — colours of NA recovery</td></tr>
   </table>
-
-  <div class="callout tip">
-    <div class="callout-title">Tip</div>
-    The NA Recovery Theme (💙) uses deep navy blue (#06101e) with gold accents (#e8a020) — a calming palette designed for recovery work.
-  </div>
 
   <!-- ══════════════════════════════════════════ -->
   <h2 id="dashboard">Dashboard</h2>
 
-  <img src="screenshots/01-dashboard-top.png" alt="Dashboard — top half" class="screenshot">
-  <p class="screenshot-caption">Dashboard — stats bar and Recovery Counter</p>
+  <img src="screenshots/01-dashboard-top.png" alt="Dashboard" class="screenshot">
+  <p class="screenshot-caption">Dashboard — stats bar, Recovery Stats Row, and Sobriety Counter</p>
 
-  <p>The Dashboard is your home base. It gives you an at-a-glance view of your journaling activity and recovery progress.</p>
+  <p>The Dashboard gives you an at-a-glance view of both your journaling activity and recovery progress.</p>
 
-  <h3>Stats Bar</h3>
-  <p>Four cards at the top show your key journaling metrics:</p>
+  <h3>Stats Bar (Journaling)</h3>
   <ul>
-    <li><strong>🔥 Current Streak</strong> — consecutive days you've written a journal entry</li>
+    <li><strong>🔥 Current Streak</strong> — consecutive days with a journal entry</li>
     <li><strong>📝 Total Entries</strong> — all entries ever written</li>
-    <li><strong>🏆 Longest Streak</strong> — your personal best consecutive-day record</li>
+    <li><strong>🏆 Longest Streak</strong> — personal best consecutive-day record</li>
     <li><strong>💬 Avg. Words</strong> — average word count per entry</li>
   </ul>
 
+  <h3>Recovery Stats Row</h3>
+  <p>Below the journaling stats is a second row of four recovery-specific cards. These show automatically once any recovery data is saved:</p>
+  <table>
+    <tr><th>Card</th><th>What it shows</th></tr>
+    <tr><td>💙 Days Clean</td><td>Total days since your clean date</td></tr>
+    <tr><td>🤝 Meetings/Week</td><td>Meetings attended since Sunday</td></tr>
+    <tr><td>📖 Step Progress</td><td>Steps completed out of 12 (e.g. 4 / 12)</td></tr>
+    <tr><td>✅ Tasks Today</td><td>Percentage of daily tasks completed today</td></tr>
+  </table>
+
   <h3>Activity Heatmap</h3>
-  <p>A GitHub-style heatmap shows the past 12 months of journaling activity. Darker green = more entries that day. Hover any cell to see the date and entry count.</p>
-
-  <!-- ══════════════════════════════════════════ -->
-  <h2 id="sobriety">Sobriety Counter</h2>
-  <p>The Recovery Counter card sits at the top of the Dashboard. It tracks how long you have been clean and sober with a live ticker.</p>
-
-  <img src="screenshots/01-dashboard-top.png" alt="Sobriety Counter" class="screenshot">
-
-  <h3>Setting Your Clean Date</h3>
-  <ol class="steps">
-    <li><span>Click <strong>✏️ Set Date</strong> on the Recovery Counter card.</span></li>
-    <li><span>A date picker modal opens. Enter the date you got clean.</span></li>
-    <li><span>Click <strong>Save</strong>. The counter updates immediately.</span></li>
-  </ol>
-
-  <p>The counter displays:</p>
-  <ul>
-    <li><strong>Years / Months / Days</strong> clean</li>
-    <li><strong>Total days</strong> as a number</li>
-    <li><strong>Live HH:MM:SS ticker</strong> — counts every second</li>
-    <li><strong>Your clean date</strong> — "Clean since Saturday, December 27, 2025"</li>
-    <li><strong>Daily motivational quote</strong> from the NA literature</li>
-  </ul>
-
-  <h3>Copy to Journal</h3>
-  <p>Click <strong>📋 Copy to Journal</strong> to paste a pre-formatted sobriety update directly into a new journal entry.</p>
-
-  <h3>Reset</h3>
-  <p>Click <strong>Reset</strong> (red) to clear the date. This does not delete your journal entries — only the sobriety date stored in the database.</p>
-
-  <div class="callout warning">
-    <div class="callout-title">Note</div>
-    Your sobriety date is stored securely in the PostgreSQL database. It is never stored in your browser.
-  </div>
-
-  <!-- ══════════════════════════════════════════ -->
-  <h2 id="na-dashboard">NA Recovery Dashboard <span class="badge-inline badge-na">New</span></h2>
-
-  <img src="screenshots/02-dashboard-bottom.png" alt="NA Recovery Dashboard widget" class="screenshot">
-  <p class="screenshot-caption">NA Recovery Dashboard — 4 preview cards + Today's Recovery Score</p>
-
-  <p>Beneath the Sobriety Counter is the <strong>NA Recovery</strong> widget. It shows four preview cards and a Recovery Score — all at a glance without leaving the Dashboard.</p>
-
-  <h3>Daily Motivational Quote</h3>
-  <p>A recovery-focused quote appears each day (rotates daily). Quotes are drawn from public-domain recovery wisdom.</p>
-
-  <h3>The 4 Preview Cards</h3>
-
-  <div class="feature-grid">
-    <div class="feature-card">
-      <div class="icon">🤝</div>
-      <strong>Meetings</strong>
-      <p>Shows today's scheduled meetings. Check-in as attended with one tap. Shows next upcoming meeting day.</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">👤</div>
-      <strong>Sponsor</strong>
-      <p>Sponsor name, years clean, current step. Tap-to-call and tap-to-text buttons if a phone number is saved.</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">📖</div>
-      <strong>12 Steps</strong>
-      <p>Current step number, progress bar, and count of completed steps. Tap "View Work →" to open the Sponsor page.</p>
-    </div>
-    <div class="feature-card">
-      <div class="icon">✅</div>
-      <strong>Daily Tasks</strong>
-      <p>Tasks completed today with a progress bar. Check off tasks directly from the card. Tap "All Tasks →" for the full list.</p>
-    </div>
-  </div>
-
-  <h3>Status Dots</h3>
-  <p>Each card has a colour-coded dot in the top-left corner:</p>
-  <table>
-    <tr><th>Colour</th><th>Meaning</th></tr>
-    <tr><td>🟢 Green</td><td>Complete / all good — meeting attended, sponsor set, steps in progress</td></tr>
-    <tr><td>🟡 Yellow</td><td>Pending — today's meeting not yet attended, tasks partially done</td></tr>
-    <tr><td>🔴 Red</td><td>Overdue — tasks not started today</td></tr>
-    <tr><td>⚪ Gray</td><td>Nothing set up yet</td></tr>
-  </table>
-
-  <h3>Today's Recovery Score</h3>
-  <p>A score from <strong>0 to 100</strong> is calculated at the bottom of the widget:</p>
-  <table>
-    <tr><th>Category</th><th>Points</th><th>How to earn</th></tr>
-    <tr><td>🤝 Meetings</td><td>30 pts</td><td>Attend today's meeting (or no meeting = full points)</td></tr>
-    <tr><td>✅ Daily Tasks</td><td>up to 50 pts</td><td>Proportional to % of tasks completed</td></tr>
-    <tr><td>📖 Steps</td><td>up to 20 pts</td><td>10 pts for completing any step, 10 pts for being past Step 1</td></tr>
-  </table>
+  <p>A GitHub-style heatmap shows 12 months of journaling activity. Darker green = more entries that day. Hover any cell to see the date and entry count.</p>
 
   <!-- ══════════════════════════════════════════ -->
   <h2 id="add-entry">Add Entry</h2>
 
   <img src="screenshots/03-add-entry.png" alt="Add Entry page" class="screenshot">
-  <p class="screenshot-caption">Add Entry — write, pick habits, add tags, import</p>
+  <p class="screenshot-caption">Add Entry — write, pick habits, add tags</p>
 
-  <p>This is where you write your daily journal entries. Every entry is timestamped and saved to the database.</p>
-
-  <h3>Writing an Entry</h3>
   <ol class="steps">
     <li><span>Click <strong>Add Entry</strong> in the sidebar.</span></li>
-    <li><span>Type your entry in the large text area. The word count updates live.</span></li>
-    <li><span>Optionally select a <strong>mood</strong> (1–5 scale or emoji) at the top.</span></li>
-    <li><span>Click any <strong>habit badges</strong> to mark habits completed for today.</span></li>
-    <li><span>Add optional <strong>tags</strong> by typing in the tags field and pressing Enter.</span></li>
+    <li><span>Type in the text area. Word count updates live.</span></li>
+    <li><span>Select a <strong>mood</strong> (1–5) at the top.</span></li>
+    <li><span>Click any <strong>habit badge</strong> to log that habit for today.</span></li>
+    <li><span>Add <strong>tags</strong> by typing and pressing <kbd>Enter</kbd>.</span></li>
     <li><span>Click <strong>Save Entry</strong>.</span></li>
   </ol>
 
-  <h3>Habit Badges</h3>
-  <p>All habits you've configured in Settings appear as clickable chips. Selected habits (highlighted) will be logged as completed for today's date when you save.</p>
-
-  <h3>Tags</h3>
-  <p>Type a word and press <kbd>Enter</kbd> to add a tag. Tags help you filter and search entries later. Click an existing tag chip to remove it.</p>
-
   <h3>Import Entries</h3>
-  <p>The bottom of the Add Entry page has an import zone. Drag and drop a <strong>CSV</strong> or <strong>TXT</strong> file to bulk-import past journal entries.</p>
-  <ul>
-    <li><strong>CSV format:</strong> <code>date, content, mood (optional)</code></li>
-    <li><strong>TXT format:</strong> plain text, one entry per paragraph</li>
-  </ul>
+  <p>Drag and drop a <strong>CSV</strong> or <strong>TXT</strong> file to bulk-import past entries. CSV format: <code>date, content, mood</code>.</p>
 
   <!-- ══════════════════════════════════════════ -->
-  <h2 id="entries">Entries</h2>
-
-  <img src="screenshots/04-entries.png" alt="Entries list" class="screenshot">
-  <p class="screenshot-caption">Entries — chronological feed with photos</p>
-
-  <p>The Entries page shows all your journal entries in a reverse-chronological feed. Entries that have attached photos display a thumbnail preview.</p>
-
-  <h3>Searching & Filtering</h3>
-  <ul>
-    <li>Use the <strong>search bar</strong> at the top to search by keyword across all entries.</li>
-    <li>Filter by <strong>mood</strong> or <strong>tag</strong> using the filter chips.</li>
-    <li>Entries are paginated — scroll down to load older entries.</li>
-  </ul>
-
-  <h3>Editing an Entry</h3>
-  <p>Click any entry card to expand it. Click the <strong>Edit</strong> button to open it in the editor. Click <strong>Delete</strong> to permanently remove an entry.</p>
-
-  <!-- ══════════════════════════════════════════ -->
-  <h2 id="habits">Habits</h2>
+  <h2 id="habits">Habits Tracker</h2>
 
   <img src="screenshots/05-habits.png" alt="Habits tracker" class="screenshot">
-  <p class="screenshot-caption">Habits — 30-day grid with today's checkbox column</p>
+  <p class="screenshot-caption">Habits — 30-day grid with today's column</p>
 
-  <p>The Habits page shows a 30-day rolling grid. Each row is a habit; each column is a day. Filled (cyan) cells = completed. Empty cells = not completed.</p>
+  <p>The Habits page shows a 30-day rolling grid. Filled (cyan) cells = completed. The <strong>rightmost column (●)</strong> is today — click to toggle.</p>
 
-  <h3>Logging Habits</h3>
-  <ul>
-    <li>The <strong>rightmost column (●)</strong> is today. Click a cell to toggle today's habit.</li>
-    <li>Past days are filled automatically when you save a journal entry with those habits checked.</li>
-  </ul>
-
-  <h3>Managing Habits</h3>
-  <p>Click <strong>⚙️ Manage</strong> (top-right) or go to <strong>Settings</strong> to add or remove habits. Each habit has a name, colour, and optional emoji icon.</p>
+  <p>Go to <strong>Settings</strong> (⚙️ sidebar) to add or remove habits. Each habit has a name, colour, and optional emoji.</p>
 
   <!-- ══════════════════════════════════════════ -->
   <h2 id="calendar">Calendar</h2>
 
   <img src="screenshots/06-calendar.png" alt="Calendar" class="screenshot">
-  <p class="screenshot-caption">Calendar — monthly view with events and journal entry markers</p>
+  <p class="screenshot-caption">Calendar — monthly view with events and journal markers</p>
 
-  <p>The Calendar shows a full monthly grid. Two types of items appear on calendar days:</p>
-  <ul>
-    <li><strong>📓 Journal Entries</strong> — small notebook icon, appears on any day you wrote an entry</li>
-    <li><strong>Coloured events</strong> — calendar events you've created manually</li>
-  </ul>
+  <p>Monthly grid showing journal entry markers (📓) and coloured calendar events. Click any day to see its events and journal entry in a popup.</p>
 
   <h3>Creating an Event</h3>
   <ol class="steps">
-    <li><span>Click <strong>+ New Event</strong> (top-right) or click directly on a calendar day.</span></li>
-    <li><span>Enter the event title, date, time, and optionally a colour.</span></li>
+    <li><span>Click <strong>+ New Event</strong> or click directly on a calendar day.</span></li>
+    <li><span>Enter title, date, time, and colour.</span></li>
     <li><span>Click <strong>Save</strong>.</span></li>
   </ol>
 
-  <h3>Viewing a Day</h3>
-  <p>Click any day cell to open a popup showing that day's events <em>and</em> journal entry. You can read the full entry text directly in the popup.</p>
-
-  <h3>Navigation</h3>
-  <p>Use <strong>‹ Prev</strong> and <strong>Next ›</strong> to move between months. Click <strong>Today</strong> to jump back to the current month.</p>
-
-  <!-- ══════════════════════════════════════════ -->
-  <h2 id="insights">Insights</h2>
-
-  <img src="screenshots/10-insights.png" alt="Insights charts" class="screenshot">
-  <p class="screenshot-caption">Insights — four analytical charts</p>
-
-  <p>The Insights page renders four charts based on your journal data:</p>
-
-  <table>
-    <tr><th>Chart</th><th>What it shows</th></tr>
-    <tr><td>📊 Entry Frequency</td><td>Bar chart — entries per week over the last 12 weeks</td></tr>
-    <tr><td>📈 Mood Trend</td><td>Line chart — mood score over the last 30 entries</td></tr>
-    <tr><td>🕸️ Day of Week</td><td>Radar chart — which days of the week you write most</td></tr>
-    <tr><td>📝 Words Written</td><td>Bar chart — total words per month for the last 6 months</td></tr>
-  </table>
-
-  <h3>AI Analysis</h3>
-  <p>Scroll down on the Insights page to find the <strong>Claude AI</strong> analysis section. Click <strong>Generate Insights</strong> to have the AI summarise patterns in your writing, identify recurring themes, and suggest reflection prompts.</p>
-
   <div class="callout tip">
-    <div class="callout-title">Tip</div>
-    AI Insights require the Claude API key to be configured in Settings (or set via the server's .env file). If configured on the server, no key is needed in the app.
+    <div class="callout-title">Tip — Auto Calendar from Meetings</div>
+    When adding a meeting in the Meetings tab, check <strong>"Add to calendar automatically"</strong> and the app will create 8 weekly recurring calendar events for you automatically.
   </div>
 
   <!-- ══════════════════════════════════════════ -->
-  <h2 id="files">Files</h2>
+  <h2 id="sobriety">Sobriety Counter</h2>
 
-  <img src="screenshots/09-files.png" alt="File manager" class="screenshot">
-  <p class="screenshot-caption">Files — folder-based file manager with upload support</p>
+  <p>The Recovery Counter card sits at the top of the Dashboard and tracks exactly how long you have been clean.</p>
 
-  <p>The Files page is a full-featured file manager. You can store documents, photos, and any other files alongside your journal.</p>
-
-  <h3>Uploading Files</h3>
+  <h3>Setting Your Clean Date</h3>
   <ol class="steps">
-    <li><span>Navigate to the folder you want (or stay in Home).</span></li>
-    <li><span>Click <strong>⬆ Upload</strong> (top-right).</span></li>
-    <li><span>Select one or more files. They upload immediately.</span></li>
+    <li><span>Click <strong>✏️ Set Date</strong> on the Recovery Counter card.</span></li>
+    <li><span>Enter the date you got clean in the date picker.</span></li>
+    <li><span>Click <strong>Save</strong>. The counter updates immediately and starts ticking live.</span></li>
   </ol>
 
-  <h3>Creating Folders</h3>
-  <p>Click <strong>📁 New Folder</strong> to create a sub-folder. Double-click any folder to open it. The breadcrumb trail at the top shows your current path.</p>
+  <p>The counter displays years / months / days clean, total day count, a live HH:MM:SS ticker, your clean date, and a daily motivational quote.</p>
 
-  <h3>Downloading & Deleting</h3>
-  <p>Click any file to preview it (images open inline). Hover a file card to reveal the <strong>Download</strong> and <strong>Delete</strong> buttons.</p>
-
-  <!-- ══════════════════════════════════════════ -->
-  <h2 id="settings">Settings</h2>
-
-  <img src="screenshots/11-settings.png" alt="Settings page" class="screenshot">
-  <p class="screenshot-caption">Settings — habit management and Claude AI key</p>
-
-  <h3>Habits Management</h3>
-  <p>The top section lists all current habits. Click <strong>+ Add Habit</strong> to create a new one (enter a name, pick a colour, and an optional emoji). Click <strong>Remove</strong> to delete a habit permanently.</p>
-
-  <div class="callout warning">
-    <div class="callout-title">Warning</div>
-    Removing a habit deletes all historical data for that habit from the database. This cannot be undone.
+  <div class="callout success">
+    <div class="callout-title">Secure Storage</div>
+    Your clean date is stored in the PostgreSQL database — never in the browser. It persists across devices that connect to the same server.
   </div>
 
-  <h3>Claude AI Integration</h3>
-  <p>If the <code>ANTHROPIC_API_KEY</code> is already set in the server's <code>.env</code> file, you'll see the message <em>"Claude API key is configured on the server — no key needed here."</em> You can also paste a key directly into the field and click <strong>Save</strong> for a per-session override.</p>
+  <!-- ══════════════════════════════════════════ -->
+  <h2 id="na-dashboard">Recovery Dashboard Widget</h2>
+
+  <img src="screenshots/02-dashboard-bottom.png" alt="Recovery Dashboard" class="screenshot">
+  <p class="screenshot-caption">Recovery Dashboard — 4 preview cards + Today's Recovery Score</p>
+
+  <p>Beneath the Sobriety Counter is the <strong>Recovery Dashboard</strong> widget with four preview cards and a Recovery Score.</p>
+
+  <h3>The 4 Preview Cards</h3>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="icon">🤝</div>
+      <strong>Meetings</strong>
+      <p>Today's meetings with one-tap attendance check-in. Shows next upcoming meeting day.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">👤</div>
+      <strong>Sponsor</strong>
+      <p>Sponsor name, years clean, current step. Tap-to-call and tap-to-text if phone is saved.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">📖</div>
+      <strong>12 Steps</strong>
+      <p>Current step, progress bar, steps completed. Tap "View Work →" to open the Sponsor page.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">✅</div>
+      <strong>Daily Tasks</strong>
+      <p>Tasks done today with progress bar. Check off tasks directly from the card.</p>
+    </div>
+  </div>
+
+  <h3>Today's Recovery Score</h3>
+  <table>
+    <tr><th>Category</th><th>Points</th><th>How to earn</th></tr>
+    <tr><td>🤝 Meetings</td><td>30 pts</td><td>Mark today's meeting attended (or no meeting scheduled = full points)</td></tr>
+    <tr><td>✅ Daily Tasks</td><td>up to 70 pts</td><td>Proportional to percentage of daily tasks completed today</td></tr>
+  </table>
 
   <!-- ══════════════════════════════════════════ -->
-  <h2 id="meetings">NA Meetings <span class="badge-inline badge-na">NA Recovery</span></h2>
+  <h2 id="meetings">NA Meetings &amp; 90-in-90 <span class="badge-inline badge-na">Recovery</span></h2>
 
-  <img src="screenshots/07-meetings.png" alt="NA Meetings page" class="screenshot">
-  <p class="screenshot-caption">Meetings — 7-day weekly grid with attendance tracking</p>
+  <img src="screenshots/07-meetings.png" alt="Meetings page" class="screenshot">
+  <p class="screenshot-caption">Meetings — 7-day grid with attendance, 90-in-90 tracker, and stats modal</p>
 
-  <p>The Meetings page is your NA meeting schedule. It shows a 7-day week grid centred on today (highlighted in blue) with all your recurring meetings displayed in their day column.</p>
-
-  <h3>Stats Bar</h3>
-  <ul>
-    <li><strong>🔥 Day Streak</strong> — consecutive days with at least one meeting attended</li>
-    <li><strong>Attended This Week</strong> — meetings attended in the current 7-day window</li>
-    <li><strong>Total Meetings Attended</strong> — all-time attendance count</li>
-  </ul>
+  <h3>Weekly Meeting Grid</h3>
+  <p>Seven columns represent the current week (today highlighted in blue). Each meeting card shows time, name, location, and commitment type.</p>
 
   <h3>Adding a Meeting</h3>
   <ol class="steps">
-    <li><span>Click <strong>+ Add Meeting</strong> (top-right) or the <strong>+ Add</strong> button under any day column.</span></li>
-    <li><span>Fill in the meeting name, day of week, time, and location.</span></li>
-    <li><span>Choose your <strong>commitment type</strong>: Member, Chair, Read, Greet, Share, or Speaker.</span></li>
-    <li><span>Pick a <strong>colour</strong> for the meeting card.</span></li>
-    <li><span>Toggle <strong>Recurring</strong> if this meeting happens every week.</span></li>
+    <li><span>Click <strong>+ Add Meeting</strong> or the <strong>+ Add</strong> under any day column.</span></li>
+    <li><span>Enter the name, day of week, time, and location.</span></li>
+    <li><span>Choose a <strong>commitment type</strong>: Member, Chair, Read, Greet, Share, or Speaker.</span></li>
+    <li><span>Pick a <strong>colour</strong> swatch for the card.</span></li>
+    <li><span>Toggle <strong>Recurring</strong> for weekly meetings.</span></li>
+    <li><span>Optionally check <strong>"Add to calendar automatically"</strong> to create calendar events.</span></li>
     <li><span>Click <strong>Save Meeting</strong>.</span></li>
   </ol>
 
   <h3>Marking Attendance</h3>
-  <p>Click the <strong>Mark Attended</strong> button on a meeting card to log that you attended today's meeting. The button turns green with a checkmark. Click again to un-mark.</p>
+  <p>Click <strong>Mark Attended</strong> on a meeting card to log attendance for today. The button turns green. Click again to un-mark.</p>
 
-  <h3>Editing or Deleting a Meeting</h3>
-  <p>Click a meeting card to open its edit modal. Make changes and click <strong>Save Meeting</strong>, or click <strong>Delete Meeting</strong> (red button at the bottom of the modal).</p>
+  <h3>Meeting Attendance Stats <span class="badge-inline badge-new">New</span></h3>
+  <p>Each meeting card has a small <strong>📊</strong> button in the top-right corner. Click it to open the <strong>Meeting Stats modal</strong>, which shows:</p>
+  <ul>
+    <li><strong>Total Attended</strong> — all-time count for this specific meeting</li>
+    <li><strong>This Month</strong> — attendance count for the current month</li>
+    <li><strong>This Week</strong> — attendance count since Sunday</li>
+    <li><strong>🔥</strong> badge if you have any attendance logged</li>
+  </ul>
 
-  <div class="callout success">
-    <div class="callout-title">Data Storage</div>
-    Meeting schedules and attendance records are stored in PostgreSQL. Attendance resets automatically — each day's check-in is a separate record.
+  <h3>90 Meetings in 90 Days <span class="badge-inline badge-new">New</span></h3>
+  <p>The <strong>90-in-90 Tracker</strong> card sits above the weekly grid. It helps you complete the traditional newcomer commitment of attending 90 NA meetings in 90 days.</p>
+  <ul>
+    <li>Click <strong>🔥 Start 90-in-90</strong> to begin. Today's date is set as the start date.</li>
+    <li>The tracker counts any <em>attendance</em> dates logged within the 90-day window.</li>
+    <li>Four stat counters show: Attended, Days Left, To Catch Up, and Progress %.</li>
+    <li>A progress bar turns green when complete and shows orange when behind pace.</li>
+    <li>The <strong>Reset</strong> button starts the counter over from scratch.</li>
+  </ul>
+
+  <div class="callout tip">
+    <div class="callout-title">Tip</div>
+    The status badge shows <strong>On Track</strong> (green) when you've attended ≥ the number of days elapsed, or <strong>Behind</strong> (orange) when you need to catch up. Once you hit 90 attended meetings it shows <strong>✅ Complete!</strong>
   </div>
 
   <!-- ══════════════════════════════════════════ -->
-  <h2 id="sponsor">Sponsor &amp; 12 Steps <span class="badge-inline badge-na">NA Recovery</span></h2>
+  <h2 id="sponsor">Sponsor &amp; 12-Step Progress <span class="badge-inline badge-na">Recovery</span></h2>
 
-  <img src="screenshots/08-sponsor.png" alt="Sponsor & Recovery page" class="screenshot">
-  <p class="screenshot-caption">Sponsor & Recovery — sponsor profile and 12-step progress grid</p>
-
-  <p>The Sponsor page has three sections: your sponsor's profile, the 12-step progress grid, and your daily recovery tasks.</p>
+  <img src="screenshots/08-sponsor.png" alt="Sponsor page" class="screenshot">
+  <p class="screenshot-caption">Sponsor &amp; Recovery — sponsor profile and 12-step grid</p>
 
   <h3>My Sponsor</h3>
-  <p>Click <strong>✏️ Edit Sponsor</strong> to open the sponsor modal and enter:</p>
-  <ul>
-    <li>Name, phone number, email</li>
-    <li>Years clean</li>
-    <li>Notes (private, stored only in your database)</li>
-  </ul>
-  <p>Once saved, the sponsor card shows tap-to-call (📞) and tap-to-email (✉️) buttons.</p>
+  <p>Click <strong>✏️ Edit Sponsor</strong> to enter your sponsor's name, phone, email, years clean, and notes. Once saved, the sponsor card shows tap-to-call (📞) and tap-to-text (💬) buttons.</p>
 
-  <h3>12-Step Progress</h3>
-  <p>The 6×2 grid shows all 12 steps. The step you're currently working on is highlighted with a blue border.</p>
+  <h3>12-Step Progress Grid</h3>
+  <p>A 6×2 grid shows all 12 steps. Completed steps are filled blue. Your current step shows a gold border. Click any step to open the <strong>Step Detail</strong> panel.</p>
 
   <h3>Working a Step</h3>
   <ol class="steps">
-    <li><span>Click any step box to open the step detail panel.</span></li>
-    <li><span>Read the step description.</span></li>
-    <li><span>Write notes in the <strong>My Notes</strong> textarea.</span></li>
-    <li><span>Check <strong>Mark this step complete</strong> when you've finished it.</span></li>
-    <li><span>Click <strong>Save Notes</strong>.</span></li>
+    <li><span>Click any step box in the grid.</span></li>
+    <li><span>The step modal opens with the step title, description, and a notes textarea.</span></li>
+    <li><span>Type a note or reflection in the <strong>Add a Note</strong> field.</span></li>
+    <li><span>Click <strong>Save</strong> — your note is timestamped and saved. The textarea clears for another note.</span></li>
+    <li><span>When ready, check <strong>Mark this step complete</strong> and click <strong>Save</strong>.</span></li>
   </ol>
 
-  <p>Completed steps turn solid blue. The current (in-progress) step shows a gold accent border. The progress bar at the top shows how many of the 12 steps you've completed.</p>
+  <p>Completing a step automatically advances your current step to the next incomplete one.</p>
+
+  <h3>Reopen a Completed Step</h3>
+  <p>If a step was completed but needs more work, click <strong>↩ Reopen Step</strong> in the green banner at the top of the step modal. Save to confirm.</p>
 
   <!-- ══════════════════════════════════════════ -->
-  <h2 id="daily-tasks">Daily Recovery Tasks <span class="badge-inline badge-na">NA Recovery</span></h2>
+  <h2 id="step-notes">Step Notes History <span class="badge-inline badge-p3">New v3</span></h2>
 
-  <p>Below the 12-step grid on the Sponsor page is the <strong>Daily Recovery Tasks</strong> section. Seven default tasks are pre-loaded:</p>
+  <p>Each step now keeps a <strong>timestamped notes history</strong> — every note you add is saved as a separate entry (not overwriting the previous one).</p>
 
+  <h3>How it works</h3>
   <ul>
-    <li>Call my sponsor</li>
-    <li>Pray or meditate</li>
-    <li>Read the NA Basic Text</li>
-    <li>Send a gratitude list</li>
-    <li>Attend a meeting</li>
-    <li>Reach out to another addict in recovery</li>
-    <li>Write in my journal</li>
+    <li>Type in the <strong>"Add a Note"</strong> textarea and click <strong>Save</strong>. The note is stored with today's date.</li>
+    <li>Previous notes appear below under <strong>"Previous Notes"</strong> in reverse-chronological order.</li>
+    <li>Each note entry shows its date and a <strong>✕</strong> delete button.</li>
+    <li>You can add as many notes per step as you like — they all accumulate over time.</li>
+    <li>Saving with no note text (only the completion checkbox) closes the modal immediately.</li>
   </ul>
 
-  <h3>Completing Tasks</h3>
-  <p>Check the checkbox next to any task to mark it done for today. Completed tasks get a strikethrough and the progress bar advances. Task completions <strong>reset automatically each day</strong> — you start fresh every morning.</p>
-
-  <h3>Adding Custom Tasks</h3>
-  <ol class="steps">
-    <li><span>Click <strong>+ Add Task</strong> (top-right of the Daily Tasks section).</span></li>
-    <li><span>Type the task name in the modal.</span></li>
-    <li><span>Click <strong>Add Task</strong>.</span></li>
-  </ol>
-
-  <h3>Removing Tasks</h3>
-  <p>Click the <strong>✕</strong> button beside any task (including the default tasks) to remove it. Removed tasks are deleted from the database.</p>
-
   <div class="callout note">
-    <div class="callout-title">Quick Access from Dashboard</div>
-    The NA Recovery Dashboard widget on the main Dashboard shows your top 3 daily tasks with checkboxes so you can check them off without leaving the Dashboard.
+    <div class="callout-title">Use Case</div>
+    Use step notes like a step-work journal. Write your daily reflections, inventory items, or sponsor feedback for each step — all with a date stamp so you can see your progress over time.
   </div>
 
   <!-- ══════════════════════════════════════════ -->
-  <h2 id="tips">Tips &amp; Shortcuts</h2>
+  <h2 id="daily-tasks">Daily Recovery Tasks <span class="badge-inline badge-na">Recovery</span></h2>
+
+  <p>The <strong>Daily Recovery Tasks</strong> section lives on the Sponsor page below the 12-step grid. Seven default tasks are pre-loaded (call sponsor, pray, read, meetings, etc.).</p>
+
+  <h3>Completing Tasks</h3>
+  <p>Check the checkbox to mark a task done for today. Completions show a strikethrough and advance the progress bar. <strong>Checkboxes reset automatically each day at midnight.</strong></p>
+
+  <h3>Adding / Removing Tasks</h3>
+  <p>Click <strong>+ Add Task</strong> to add a custom task. Click the <strong>✕</strong> button beside any task to remove it permanently.</p>
+
+  <div class="callout tip">
+    <div class="callout-title">Quick Access from Dashboard</div>
+    The NA Recovery Dashboard widget shows your top tasks with checkboxes — check them off without leaving the Dashboard.
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <h2 id="quit-habits">Quit Habits Tracker <span class="badge-inline badge-p3">New v3</span></h2>
+
+  <p>The <strong>Quit Tracker</strong> card sits below Daily Tasks on the Sponsor page. Track anything you've quit — smoking, alcohol, social media, gambling, caffeine — each with its own sobriety-style streak counter.</p>
+
+  <h3>Adding a Quit Habit</h3>
+  <ol class="steps">
+    <li><span>Click <strong>+ Add Habit</strong> on the Quit Tracker card.</span></li>
+    <li><span>Enter what you quit (e.g. "Smoking", "Vaping", "Alcohol").</span></li>
+    <li><span>Set the <strong>Quit Date</strong> — the date you stopped.</span></li>
+    <li><span>Pick a <strong>colour</strong> for the streak card.</span></li>
+    <li><span>Optionally add a note about why you quit or how you feel.</span></li>
+    <li><span>Click <strong>Save</strong>.</span></li>
+  </ol>
+
+  <p>Each quit habit card shows:</p>
+  <ul>
+    <li><strong>Days clean</strong> — calculated live from the quit date ("365 days clean", "Day 1 — You got this!")</li>
+    <li><strong>Progress bar</strong> — percent of the first 365 days</li>
+    <li><strong>Notes</strong> — your personal note below the bar</li>
+  </ul>
+
+  <h3>Editing or Deleting</h3>
+  <p>Click the <strong>✏️</strong> button on any card to open the edit modal. Click <strong>Delete</strong> (red) to remove it permanently.</p>
+
+  <!-- ══════════════════════════════════════════ -->
+  <h2 id="sponsees">Sponsee Tracking <span class="badge-inline badge-p3">New v3</span></h2>
+
+  <p>The <strong>My Sponsees</strong> card sits at the bottom of the Sponsor page. If you sponsor others in recovery, this is where you track their progress.</p>
+
+  <h3>Adding a Sponsee</h3>
+  <ol class="steps">
+    <li><span>Click <strong>+ Add Sponsee</strong>.</span></li>
+    <li><span>Enter their name (first name or initials — as private as you need).</span></li>
+    <li><span>Optionally enter a <strong>phone number</strong> for a tap-to-call link.</span></li>
+    <li><span>Select their <strong>Current Step</strong> from the dropdown.</span></li>
+    <li><span>Add any <strong>notes</strong> (meeting frequency, progress, goals).</span></li>
+    <li><span>Click <strong>Save</strong>.</span></li>
+  </ol>
+
+  <p>Each sponsee card shows:</p>
+  <ul>
+    <li>Avatar circle with their initial</li>
+    <li>Step progress badge (e.g. "Step 4") and step progress bar</li>
+    <li>Tap-to-call phone link (if a number is saved)</li>
+    <li>Notes text below</li>
+  </ul>
+
+  <h3>Updating Progress</h3>
+  <p>Click the <strong>✏️</strong> button on a sponsee card to open the edit modal. Update their current step and notes anytime. Click <strong>Remove</strong> (red) to delete the record.</p>
+
+  <!-- ══════════════════════════════════════════ -->
+  <h2 id="resources">Recovery Resources <span class="badge-inline badge-new">New</span></h2>
+
+  <p>The <strong>🔗 Resources</strong> page (sidebar) is a curated directory of recovery links — available offline once the app is running.</p>
+
+  <h3>Built-in Links</h3>
   <table>
-    <tr><th>Action</th><th>How to do it</th></tr>
-    <tr><td>Switch theme</td><td>Click the ☀️ / 🌙 / 💙 button (top-right of every page)</td></tr>
-    <tr><td>Quick-add a journal entry</td><td>Click <strong>Add Entry</strong> in the sidebar</td></tr>
-    <tr><td>Copy sobriety stats to journal</td><td>Click <strong>📋 Copy to Journal</strong> on the counter card</td></tr>
-    <tr><td>Call your sponsor</td><td>Tap the 📞 Call button on the Sponsor card (opens phone app)</td></tr>
-    <tr><td>Text your sponsor</td><td>Tap the 💬 Text button on the Sponsor card</td></tr>
-    <tr><td>Check in at today's meeting (from Dashboard)</td><td>Click the ○ button on the meeting row in the Meetings card</td></tr>
-    <tr><td>Jump to Meetings from Dashboard</td><td>Click <strong>View All →</strong> on the Meetings preview card</td></tr>
-    <tr><td>Jump to Sponsor page from Dashboard</td><td>Click <strong>Open Page →</strong> on the Sponsor preview card</td></tr>
-    <tr><td>Import old journal entries</td><td>Drag a CSV or TXT file onto the Add Entry page</td></tr>
+    <tr><th>Category</th><th>Links</th></tr>
+    <tr><td>🌐 Program Websites</td><td>NA.org, AA.org, CA.org, SA.org, GA.org, SMART Recovery</td></tr>
+    <tr><td>📞 Crisis &amp; Hotlines</td><td>SAMHSA 1-800-662-4357, 988 Lifeline, Crisis Text Line (741741)</td></tr>
+    <tr><td>📚 Literature &amp; Meditation</td><td>Just for Today (NA), Daily Meditations (Hazelden), NA Literature</td></tr>
+  </table>
+
+  <h3>Adding Custom Links</h3>
+  <ol class="steps">
+    <li><span>Click <strong>+ Add Link</strong> (top-right of the Resources page).</span></li>
+    <li><span>Enter a title, URL, optional description, and category.</span></li>
+    <li><span>Click <strong>Save Link</strong>.</span></li>
+  </ol>
+  <p>Custom links appear in a <strong>⭐ My Links</strong> section at the bottom. Click the <strong>✕</strong> button on any card to remove it. Custom links are saved to the database and persist across sessions.</p>
+
+  <div class="callout tip">
+    <div class="callout-title">Tip</div>
+    Add links to your home group's website, local intergroup, or your favourite recovery podcasts and YouTube channels.
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <h2 id="insights">Insights &amp; AI Analysis</h2>
+
+  <p>The Insights page renders four charts from your journal data:</p>
+  <table>
+    <tr><th>Chart</th><th>What it shows</th></tr>
+    <tr><td>📊 Entry Frequency</td><td>Entries per week over the last 12 weeks</td></tr>
+    <tr><td>📈 Mood Trend</td><td>Mood score over the last 30 entries</td></tr>
+    <tr><td>🕸️ Day of Week</td><td>Radar — which days you write most</td></tr>
+    <tr><td>📝 Words Written</td><td>Total words per month for 6 months</td></tr>
+  </table>
+
+  <p>Click <strong>Generate Insights</strong> to send your entries to the <strong>Claude AI</strong> API for pattern analysis, theme identification, and reflection prompts.</p>
+
+  <div class="callout tip">
+    <div class="callout-title">Tip</div>
+    AI Insights require an Anthropic API key — either set in the server's <code>.env</code> file as <code>ANTHROPIC_API_KEY</code>, or pasted directly in Settings.
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <h2 id="files">Files</h2>
+  <p>The Files page is a folder-based file manager. Upload documents, photos, or any files alongside your journal. Click <strong>⬆ Upload</strong>, navigate folders, double-click to open, hover to reveal Download / Delete buttons.</p>
+
+  <!-- ══════════════════════════════════════════ -->
+  <h2>Quick Reference</h2>
+  <table>
+    <tr><th>Action</th><th>How</th></tr>
+    <tr><td>Switch theme</td><td>Click 🌙 / ☀️ / 💙 button (sidebar footer)</td></tr>
+    <tr><td>Change profile picture</td><td>Click the avatar circle at top of sidebar</td></tr>
+    <tr><td>Change recovery program</td><td>Dropdown below sidebar brand name</td></tr>
+    <tr><td>Start 90-in-90</td><td>Meetings tab → 90-in-90 card → 🔥 Start</td></tr>
+    <tr><td>See meeting attendance stats</td><td>Click 📊 on any meeting card</td></tr>
+    <tr><td>Add meetings to calendar</td><td>Check "Add to calendar automatically" when saving a meeting</td></tr>
+    <tr><td>Add a step note</td><td>Click any step box → type in "Add a Note" → Save</td></tr>
+    <tr><td>Track something you quit</td><td>Sponsor page → Quit Tracker card → + Add Habit</td></tr>
+    <tr><td>Add a sponsee</td><td>Sponsor page → My Sponsees card → + Add Sponsee</td></tr>
+    <tr><td>Add a resource link</td><td>Resources tab → + Add Link</td></tr>
+    <tr><td>Copy sobriety stats to journal</td><td>📋 Copy to Journal on the counter card</td></tr>
+    <tr><td>Call your sponsor</td><td>📞 button on the Sponsor preview card or Sponsor page</td></tr>
+    <tr><td>Import old entries</td><td>Drag CSV or TXT onto the Add Entry page</td></tr>
   </table>
 
   <!-- ══════════════════════════════════════════ -->
   <h2>Data &amp; Privacy</h2>
-  <p>All data is stored in a PostgreSQL database running locally on your machine. The database connection is configured in the server's <code>.env</code> file. Nothing is sent to external servers except:</p>
-  <ul>
-    <li><strong>AI Insights</strong> — when you click "Generate Insights", your journal entries are sent to the Anthropic Claude API for analysis. This requires an active internet connection and API key.</li>
-  </ul>
+  <p>All data is stored in your local PostgreSQL database. Nothing is shared with external servers except when you click <strong>Generate Insights</strong> (which sends journal text to the Anthropic Claude API).</p>
 
   <div class="callout success">
     <div class="callout-title">Your Data is Private</div>
-    Journal entries, sobriety data, meeting schedules, sponsor information, and step notes are all stored in <strong>your local PostgreSQL database only</strong>. Nothing is uploaded to any cloud service automatically.
+    Journal entries, sobriety date, meeting schedules, sponsor information, step notes, quit habit records, sponsee records, and resource links are all stored in <strong>your local PostgreSQL database only</strong>. The app runs entirely on your own machine.
   </div>
 
   <br><br>
   <hr style="border-color: var(--border); margin: 32px 0;">
   <p style="font-size:13px; color: var(--muted); text-align:center;">
-    AI Journal Analyzer · Built by Watson Tech · User Manual v2.0 · June 2026
+    AI Recovery Tracker · Built by Watson Tech · User Manual v3.0 · June 2026
   </p>
   <br>
 
@@ -647,7 +648,6 @@
 </div>
 
 <script>
-  // Highlight active nav link based on scroll position
   const sections = document.querySelectorAll('h2[id]');
   const navLinks = document.querySelectorAll('nav a[href^="#"]');
   const observer = new IntersectionObserver(entries => {
