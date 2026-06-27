@@ -610,20 +610,6 @@ app.post('/api/na/meetings', requireAuth, async (req, res) => {
        color||'#6366f1', Date.now()]
     );
     const m = rows[0];
-    // Create a calendar event for the next occurrence so it appears in Upcoming Events
-    try {
-      const nextDate = nextMeetingDate(dayOfWeek);
-      const title = `🤝 ${name}`;
-      const st = meetingTime ? `${nextDate}T${meetingTime}:00` : `${nextDate}T00:00:00`;
-      const [hh, mm] = (meetingTime || '00:00').split(':').map(Number);
-      const endH = String((hh + 1) % 24).padStart(2, '0');
-      const et = meetingTime ? `${nextDate}T${endH}:${String(mm).padStart(2,'0')}:00` : `${nextDate}T23:59:59`;
-      await pool.query(
-        `INSERT INTO calendar_events (title,description,start_time,end_time,all_day,color)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
-        [title, location || null, st, et, !meetingTime, color || '#6366f1']
-      );
-    } catch {} // calendar failure must not block meeting creation
     res.status(201).json({ id:m.id, name:m.name, dayOfWeek:m.day_of_week, meetingTime:m.meeting_time,
       location:m.location, commitmentType:m.commitment_type, notes:m.notes,
       recurring:m.recurring, color:m.color, createdAt:Number(m.created_at), attendedToday:false });
@@ -663,6 +649,7 @@ app.delete('/api/na/meetings/:id', requireAuth, async (req, res) => {
 app.post('/api/na/meetings/:id/attend', requireAuth, async (req, res) => {
   const today = localDateStr();
   const { attended } = req.body;
+  let calendarEvent = null;
   try {
     if (attended) {
       await pool.query(
@@ -671,6 +658,7 @@ app.post('/api/na/meetings/:id/attend', requireAuth, async (req, res) => {
         [uuidv4(), req.params.id, today]
       );
       // Sync to calendar so the attended meeting appears in Upcoming Events
+      // Returns the new event so the client can update calEvents without a round-trip
       try {
         const { rows: [m] } = await pool.query('SELECT * FROM na_meetings WHERE id=$1', [req.params.id]);
         if (m) {
@@ -683,21 +671,24 @@ app.post('/api/na/meetings/:id/attend', requireAuth, async (req, res) => {
             `SELECT id FROM calendar_events WHERE title=$1 AND start_time::date=$2::date`, [title, today]
           );
           if (!ex.length) {
-            await pool.query(
+            const { rows: [calRow] } = await pool.query(
               `INSERT INTO calendar_events (title,description,start_time,end_time,all_day,color)
-               VALUES ($1,$2,$3,$4,$5,$6)`,
+               VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
               [title, m.location || null, st, et, !m.meeting_time, m.color || '#6366f1']
             );
+            calendarEvent = rowToEvent(calRow);
           }
         }
-      } catch {} // calendar failure must not block attendance save
+      } catch (calErr) {
+        console.error('[CalendarSync] attend error:', calErr.message);
+      }
     } else {
       await pool.query(
         'DELETE FROM na_meeting_attendance WHERE meeting_id=$1 AND attended_date=$2',
         [req.params.id, today]
       );
     }
-    res.json({ ok: true, attended });
+    res.json({ ok: true, attended, calendarEvent });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

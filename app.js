@@ -657,12 +657,13 @@ function renderRecoveryToday() {
 
 async function rtToggleAttend(id, attended) {
   try {
-    await api('POST', `/api/na/meetings/${id}/attend`, { attended });
+    const result = await api('POST', `/api/na/meetings/${id}/attend`, { attended });
     naMeetings = naMeetings.map(m => m.id === id ? { ...m, attendedToday: attended } : m);
     const todayStr = dateStr(new Date());
     if (attended) {
       if (!naAttendanceDates.includes(todayStr)) naAttendanceDates = [...naAttendanceDates, todayStr];
       naTotalMeetings++;
+      if (result.calendarEvent) { calEvents = [...calEvents, result.calendarEvent]; renderDashCalPreview(); }
     } else {
       naTotalMeetings = Math.max(0, naTotalMeetings - 1);
     }
@@ -866,7 +867,9 @@ async function syncMeetingToCalendar(mtg) {
       startTime, endTime, allDay: false, color: mtg.color || '#6366f1',
     }));
   }
-  await Promise.all(promises);
+  const newEvents = await Promise.all(promises);
+  calEvents = [...calEvents, ...newEvents];
+  renderDashCalPreview();
   if (weeks > 1) showToast(`Added ${weeks} calendar events`, 'success');
 }
 
@@ -884,12 +887,13 @@ async function deleteMeeting() {
 
 async function toggleAttendance(id, attended) {
   try {
-    await api('POST', `/api/na/meetings/${id}/attend`, { attended });
+    const result = await api('POST', `/api/na/meetings/${id}/attend`, { attended });
     naMeetings = naMeetings.map(m => m.id === id ? { ...m, attendedToday: attended } : m);
     const todayStr = dateStr(new Date());
     if (attended) {
       if (!naAttendanceDates.includes(todayStr)) naAttendanceDates = [todayStr, ...naAttendanceDates];
       naTotalMeetings++;
+      if (result.calendarEvent) { calEvents = [...calEvents, result.calendarEvent]; renderDashCalPreview(); }
     } else {
       naTotalMeetings = Math.max(0, naTotalMeetings - 1);
     }
