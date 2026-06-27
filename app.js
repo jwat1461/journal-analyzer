@@ -851,20 +851,22 @@ async function saveMeeting() {
 async function syncMeetingToCalendar(mtg) {
   const weeks = mtg.recurring ? 8 : 1;
   const now = new Date();
-  // Find next occurrence of dayOfWeek
-  const diff = (mtg.dayOfWeek - now.getDay() + 7) % 7 || 7;
+  // First occurrence: today if today is the meeting day, otherwise the next correct day
+  const diff = (mtg.dayOfWeek - now.getDay() + 7) % 7;
   const first = new Date(now); first.setDate(now.getDate() + diff); first.setHours(0,0,0,0);
-  const [h, m] = mtg.meetingTime ? mtg.meetingTime.split(':').map(Number) : [0, 0];
+  const [h, min] = mtg.meetingTime ? mtg.meetingTime.split(':').map(Number) : [0, 0];
+  const endH = (h + 1) % 24; // handle 23:xx → 00:xx wrap
   const promises = [];
   for (let w = 0; w < weeks; w++) {
     const d = new Date(first); d.setDate(first.getDate() + w * 7);
     const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    const startTime = `${ymd}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
-    const endTime   = `${ymd}T${String(h + 1).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
+    const startTime = `${ymd}T${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`;
+    const endTime   = `${ymd}T${String(endH).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`;
     promises.push(api('POST', '/api/calendar-events', {
       title: `🤝 ${mtg.name}`,
       description: mtg.location ? `📍 ${mtg.location}` : null,
       startTime, endTime, allDay: false, color: mtg.color || '#6366f1',
+      recurrenceRule: `meeting:${mtg.id}`,
     }));
   }
   const newEvents = await Promise.all(promises);
@@ -876,11 +878,14 @@ async function syncMeetingToCalendar(mtg) {
 async function deleteMeeting() {
   if (!editingMeetingId || !confirm('Delete this meeting?')) return;
   try {
+    const tag = `meeting:${editingMeetingId}`;
     await api('DELETE', `/api/na/meetings/${editingMeetingId}`);
     naMeetings = naMeetings.filter(m => m.id !== editingMeetingId);
+    calEvents  = calEvents.filter(ev => ev.recurrenceRule !== tag);
     closeMeetingModal();
     renderMeetingsTab();
     renderRecoveryToday();
+    renderDashCalPreview();
     showToast('Meeting deleted', 'success');
   } catch (err) { showToast('Failed: ' + err.message, 'error'); }
 }

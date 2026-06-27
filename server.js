@@ -14,6 +14,13 @@ const pool       = new Pool({ connectionString: process.env.DATABASE_URL });
 const UPLOADS    = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
 const JWT_SECRET = process.env.JWT_SECRET  || 'ja-nas-secret-change-in-production';
 
+if (!process.env.JWT_SECRET) {
+  console.warn('[Config] WARNING: JWT_SECRET not set — using insecure default. Set it in .env for production.');
+}
+
+// Trust Cloudflare/reverse-proxy headers so req.ip and HTTPS detection work correctly
+app.set('trust proxy', 1);
+
 // ── Schema (journal tables — NAS tables already exist in nas_db) ──────────────
 const JOURNAL_SCHEMA = `
 CREATE TABLE IF NOT EXISTS entries (
@@ -642,6 +649,7 @@ app.put('/api/na/meetings/:id', requireAuth, async (req, res) => {
 app.delete('/api/na/meetings/:id', requireAuth, async (req, res) => {
   try {
     await pool.query('DELETE FROM na_meetings WHERE id=$1', [req.params.id]);
+    await pool.query(`DELETE FROM calendar_events WHERE recurrence_rule=$1`, [`meeting:${req.params.id}`]);
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -672,9 +680,9 @@ app.post('/api/na/meetings/:id/attend', requireAuth, async (req, res) => {
           );
           if (!ex.length) {
             const { rows: [calRow] } = await pool.query(
-              `INSERT INTO calendar_events (title,description,start_time,end_time,all_day,color)
-               VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-              [title, m.location || null, st, et, !m.meeting_time, m.color || '#6366f1']
+              `INSERT INTO calendar_events (title,description,start_time,end_time,all_day,color,recurrence_rule)
+               VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+              [title, m.location || null, st, et, !m.meeting_time, m.color || '#6366f1', `meeting:${req.params.id}`]
             );
             calendarEvent = rowToEvent(calRow);
           }
@@ -1048,8 +1056,10 @@ async function startServer() {
     console.error('[NA] Task seed error:', err.message);
   }
 
-  app.listen(PORT, () => {
-    console.log(`AI Recovery Tracker running at http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`AI Recovery Tracker running on port ${PORT}`);
+    console.log(`  Local:   http://localhost:${PORT}`);
+    if (process.env.PUBLIC_URL) console.log(`  Public:  ${process.env.PUBLIC_URL}`);
   });
 }
 

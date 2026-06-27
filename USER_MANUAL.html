@@ -122,7 +122,7 @@
 <nav>
   <div class="nav-logo">
     <h1>💙 AI Recovery Tracker</h1>
-    <p>User Manual · v3.0 · Watson Tech</p>
+    <p>User Manual · v3.1 · Watson Tech</p>
   </div>
   <a class="section-head">Getting Started</a>
   <a href="#overview">Overview</a>
@@ -143,7 +143,7 @@
   <a href="#sobriety">Sobriety Counter</a>
   <a href="#na-dashboard">Recovery Dashboard</a>
   <a href="#meetings">Meetings &amp; 90-in-90</a>
-  <a href="#sponsor">Sponsor &amp; Steps</a>
+  <a href="#sponsor">Recovery Management</a>
   <a href="#step-notes">Step Notes</a>
   <a href="#daily-tasks">Daily Tasks</a>
   <a href="#quit-habits">Quit Habits</a>
@@ -157,7 +157,7 @@
   <div class="hero">
     <h1>💙 AI Recovery Tracker — User Manual</h1>
     <p>A private, self-hosted recovery platform with journaling, habit tracking, AI insights, a full calendar, and a complete NA/AA/CA/SA/GA recovery toolkit — all saved to your personal PostgreSQL database.</p>
-    <span class="badge">Version 3.0 · Watson Tech · June 2026</span>
+    <span class="badge">Version 3.1 · Watson Tech · June 2026</span>
   </div>
 
   <div class="toc">
@@ -221,7 +221,7 @@
     <tr><td>🎯 Habits</td><td>30-day habit grid — check off today's positive habits</td></tr>
     <tr><td>📅 Calendar</td><td>Monthly calendar with events and journal entry markers</td></tr>
     <tr><td>🤝 Meetings</td><td>Weekly meeting grid, attendance tracking, 90-in-90 tracker</td></tr>
-    <tr><td>👤 Sponsor</td><td>Sponsor profile, 12-step grid, step notes, daily tasks, quit habits, sponsees</td></tr>
+    <tr><td>🔧 Recovery</td><td>Recovery Management — sponsor profile, 12-step grid, step notes, daily tasks, quit habits, sponsees</td></tr>
     <tr><td>📁 Files</td><td>Upload and organise files and folders</td></tr>
     <tr><td>📊 Insights</td><td>AI analysis and writing charts</td></tr>
     <tr><td>🔗 Resources</td><td>Recovery websites, crisis hotlines, and custom links</td></tr>
@@ -394,6 +394,12 @@
     </div>
   </div>
 
+  <h3>Upcoming Events</h3>
+  <p>Below the Recovery Dashboard widget is an <strong>Upcoming Events</strong> preview that shows your next 5 calendar events — including any meetings you've synced. This updates in real time whenever you add a meeting or mark attendance.</p>
+
+  <img src="screenshots/02-dashboard-upcoming-events.png" alt="Dashboard Upcoming Events" class="screenshot">
+  <p class="screenshot-caption">Upcoming Events on the Dashboard — meeting calendar events appear instantly after sync</p>
+
   <h3>Today's Recovery Score</h3>
   <table>
     <tr><th>Category</th><th>Points</th><th>How to earn</th></tr>
@@ -411,18 +417,38 @@
   <p>Seven columns represent the current week (today highlighted in blue). Each meeting card shows time, name, location, and commitment type.</p>
 
   <h3>Adding a Meeting</h3>
+
+  <img src="screenshots/07b-add-meeting-modal.png" alt="Add Meeting modal" class="screenshot">
+  <p class="screenshot-caption">Add Meeting modal — name, day, time, location, colour, recurring, and calendar sync options</p>
+
   <ol class="steps">
     <li><span>Click <strong>+ Add Meeting</strong> or the <strong>+ Add</strong> under any day column.</span></li>
     <li><span>Enter the name, day of week, time, and location.</span></li>
     <li><span>Choose a <strong>commitment type</strong>: Member, Chair, Read, Greet, Share, or Speaker.</span></li>
     <li><span>Pick a <strong>colour</strong> swatch for the card.</span></li>
     <li><span>Toggle <strong>Recurring</strong> for weekly meetings.</span></li>
-    <li><span>Optionally check <strong>"Add to calendar automatically"</strong> to create calendar events.</span></li>
+    <li><span>Check <strong>"Add to calendar automatically"</strong> to create 8 weeks of recurring calendar events immediately on save.</span></li>
     <li><span>Click <strong>Save Meeting</strong>.</span></li>
   </ol>
 
-  <h3>Marking Attendance</h3>
-  <p>Click <strong>Mark Attended</strong> on a meeting card to log attendance for today. The button turns green. Click again to un-mark.</p>
+  <div class="callout tip">
+    <div class="callout-title">Tip — Calendar Auto-Sync</div>
+    When <strong>"Add to calendar automatically"</strong> is checked, the app creates <strong>8 weekly recurring calendar events</strong> starting from the meeting's day of the week (including today if that's the day). Events appear instantly in both the Calendar tab and the <strong>Upcoming Events</strong> section on the Dashboard — no page refresh needed. Deleting a meeting automatically removes all its calendar events.
+  </div>
+
+  <h3>Marking Attendance <span class="badge-inline badge-new">Updated</span></h3>
+
+  <img src="screenshots/07d-attendance-marked.png" alt="Attendance marked" class="screenshot">
+  <p class="screenshot-caption">Attendance marked — button turns green and a calendar event for today is created automatically</p>
+
+  <p>Click <strong>Mark Attended</strong> on a meeting card to log attendance for today. The button turns green and:</p>
+  <ul>
+    <li>Today's attendance is saved to the database.</li>
+    <li>A calendar event for this meeting is created for today automatically (no duplicates if you un-mark and re-mark).</li>
+    <li>The <strong>Upcoming Events</strong> preview on the Dashboard updates immediately — no page refresh needed.</li>
+    <li>The <strong>Total Meetings Attended</strong> counter increments live.</li>
+  </ul>
+  <p>Click the green button again to un-mark attendance. The calendar event is not removed (it was already created).</p>
 
   <h3>Meeting Attendance Stats <span class="badge-inline badge-new">New</span></h3>
   <p>Each meeting card has a small <strong>📊</strong> button in the top-right corner. Click it to open the <strong>Meeting Stats modal</strong>, which shows:</p>
@@ -449,10 +475,10 @@
   </div>
 
   <!-- ══════════════════════════════════════════ -->
-  <h2 id="sponsor">Sponsor &amp; 12-Step Progress <span class="badge-inline badge-na">Recovery</span></h2>
+  <h2 id="sponsor">Recovery Management <span class="badge-inline badge-na">Recovery</span></h2>
 
-  <img src="screenshots/08-sponsor.png" alt="Sponsor page" class="screenshot">
-  <p class="screenshot-caption">Sponsor &amp; Recovery — sponsor profile and 12-step grid</p>
+  <img src="screenshots/08-recovery-management.png" alt="Recovery Management page" class="screenshot">
+  <p class="screenshot-caption">Recovery Management — sponsor profile, 12-step grid, daily tasks, quit habits, and sponsees</p>
 
   <h3>My Sponsor</h3>
   <p>Click <strong>✏️ Edit Sponsor</strong> to enter your sponsor's name, phone, email, years clean, and notes. Once saved, the sponsor card shows tap-to-call (📞) and tap-to-text (💬) buttons.</p>
@@ -619,12 +645,12 @@
     <tr><td>Start 90-in-90</td><td>Meetings tab → 90-in-90 card → 🔥 Start</td></tr>
     <tr><td>See meeting attendance stats</td><td>Click 📊 on any meeting card</td></tr>
     <tr><td>Add meetings to calendar</td><td>Check "Add to calendar automatically" when saving a meeting</td></tr>
-    <tr><td>Add a step note</td><td>Click any step box → type in "Add a Note" → Save</td></tr>
-    <tr><td>Track something you quit</td><td>Sponsor page → Quit Tracker card → + Add Habit</td></tr>
-    <tr><td>Add a sponsee</td><td>Sponsor page → My Sponsees card → + Add Sponsee</td></tr>
+    <tr><td>Add a step note</td><td>Recovery Management → click any step box → type in "Add a Note" → Save</td></tr>
+    <tr><td>Track something you quit</td><td>Recovery Management page → Quit Tracker card → + Add Habit</td></tr>
+    <tr><td>Add a sponsee</td><td>Recovery Management page → My Sponsees card → + Add Sponsee</td></tr>
     <tr><td>Add a resource link</td><td>Resources tab → + Add Link</td></tr>
     <tr><td>Copy sobriety stats to journal</td><td>📋 Copy to Journal on the counter card</td></tr>
-    <tr><td>Call your sponsor</td><td>📞 button on the Sponsor preview card or Sponsor page</td></tr>
+    <tr><td>Call your sponsor</td><td>📞 button on the Sponsor preview card or Recovery Management page</td></tr>
     <tr><td>Import old entries</td><td>Drag CSV or TXT onto the Add Entry page</td></tr>
   </table>
 
@@ -640,7 +666,7 @@
   <br><br>
   <hr style="border-color: var(--border); margin: 32px 0;">
   <p style="font-size:13px; color: var(--muted); text-align:center;">
-    AI Recovery Tracker · Built by Watson Tech · User Manual v3.0 · June 2026
+    AI Recovery Tracker · Built by Watson Tech · User Manual v3.1 · June 2026
   </p>
   <br>
 
