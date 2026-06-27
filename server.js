@@ -116,6 +116,22 @@ CREATE TABLE IF NOT EXISTS step_notes (
 );
 `;
 
+// Local-timezone date string — avoids UTC rollover for self-hosted apps
+// (new Date().toISOString() advances to "tomorrow" at 7 PM ET; this stays on local day)
+function localDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Next calendar date that falls on a given day-of-week (0=Sun … 6=Sat); returns today if it matches
+function nextMeetingDate(dayOfWeek) {
+  const now = new Date();
+  const diff = (dayOfWeek - now.getDay() + 7) % 7;
+  const next = new Date(now);
+  next.setDate(now.getDate() + diff);
+  return `${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}-${String(next.getDate()).padStart(2,'0')}`;
+}
+
 // ── Calendar auto-sync helper ─────────────────────────────────────────────────
 const JOURNAL_CAL_COLOR = '#6366f1';
 
@@ -564,7 +580,7 @@ app.put('/api/na/settings', requireAuth, async (req, res) => {
 // ── NA Meetings ───────────────────────────────────────────────────────────────
 app.get('/api/na/meetings', requireAuth, async (_req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr();
     const { rows: mtgs } = await pool.query(
       'SELECT * FROM na_meetings ORDER BY day_of_week, meeting_time'
     );
@@ -594,6 +610,20 @@ app.post('/api/na/meetings', requireAuth, async (req, res) => {
        color||'#6366f1', Date.now()]
     );
     const m = rows[0];
+    // Create a calendar event for the next occurrence so it appears in Upcoming Events
+    try {
+      const nextDate = nextMeetingDate(dayOfWeek);
+      const title = `🤝 ${name}`;
+      const st = meetingTime ? `${nextDate}T${meetingTime}:00` : `${nextDate}T00:00:00`;
+      const [hh, mm] = (meetingTime || '00:00').split(':').map(Number);
+      const endH = String((hh + 1) % 24).padStart(2, '0');
+      const et = meetingTime ? `${nextDate}T${endH}:${String(mm).padStart(2,'0')}:00` : `${nextDate}T23:59:59`;
+      await pool.query(
+        `INSERT INTO calendar_events (title,description,start_time,end_time,all_day,color)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [title, location || null, st, et, !meetingTime, color || '#6366f1']
+      );
+    } catch {} // calendar failure must not block meeting creation
     res.status(201).json({ id:m.id, name:m.name, dayOfWeek:m.day_of_week, meetingTime:m.meeting_time,
       location:m.location, commitmentType:m.commitment_type, notes:m.notes,
       recurring:m.recurring, color:m.color, createdAt:Number(m.created_at), attendedToday:false });
@@ -614,7 +644,7 @@ app.put('/api/na/meetings/:id', requireAuth, async (req, res) => {
     const m = rows[0];
     const { rows: att } = await pool.query(
       'SELECT meeting_id FROM na_meeting_attendance WHERE attended_date=$1 AND meeting_id=$2',
-      [new Date().toISOString().split('T')[0], m.id]
+      [localDateStr(), m.id]
     );
     res.json({ id:m.id, name:m.name, dayOfWeek:m.day_of_week, meetingTime:m.meeting_time,
       location:m.location, commitmentType:m.commitment_type, notes:m.notes,
@@ -631,7 +661,7 @@ app.delete('/api/na/meetings/:id', requireAuth, async (req, res) => {
 });
 
 app.post('/api/na/meetings/:id/attend', requireAuth, async (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const { attended } = req.body;
   try {
     if (attended) {
@@ -640,6 +670,27 @@ app.post('/api/na/meetings/:id/attend', requireAuth, async (req, res) => {
          VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
         [uuidv4(), req.params.id, today]
       );
+      // Sync to calendar so the attended meeting appears in Upcoming Events
+      try {
+        const { rows: [m] } = await pool.query('SELECT * FROM na_meetings WHERE id=$1', [req.params.id]);
+        if (m) {
+          const title = `🤝 ${m.name}`;
+          const st = m.meeting_time ? `${today}T${m.meeting_time}:00` : `${today}T00:00:00`;
+          const [hh, mm] = (m.meeting_time || '00:00').split(':').map(Number);
+          const endH = String((hh + 1) % 24).padStart(2, '0');
+          const et = m.meeting_time ? `${today}T${endH}:${String(mm).padStart(2,'0')}:00` : `${today}T23:59:59`;
+          const { rows: ex } = await pool.query(
+            `SELECT id FROM calendar_events WHERE title=$1 AND start_time::date=$2::date`, [title, today]
+          );
+          if (!ex.length) {
+            await pool.query(
+              `INSERT INTO calendar_events (title,description,start_time,end_time,all_day,color)
+               VALUES ($1,$2,$3,$4,$5,$6)`,
+              [title, m.location || null, st, et, !m.meeting_time, m.color || '#6366f1']
+            );
+          }
+        }
+      } catch {} // calendar failure must not block attendance save
     } else {
       await pool.query(
         'DELETE FROM na_meeting_attendance WHERE meeting_id=$1 AND attended_date=$2',
@@ -652,18 +703,19 @@ app.post('/api/na/meetings/:id/attend', requireAuth, async (req, res) => {
 
 app.get('/api/na/meetings/attendance', requireAuth, async (_req, res) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT DISTINCT attended_date FROM na_meeting_attendance
-       ORDER BY attended_date DESC LIMIT 365`
-    );
-    res.json(rows.map(r => {
-      const d = r.attended_date instanceof Date
-        ? [r.attended_date.getFullYear(),
-           String(r.attended_date.getMonth()+1).padStart(2,'0'),
-           String(r.attended_date.getDate()).padStart(2,'0')].join('-')
+    const [{ rows: dateRows }, { rows: [cnt] }] = await Promise.all([
+      pool.query(`SELECT DISTINCT attended_date FROM na_meeting_attendance ORDER BY attended_date DESC LIMIT 365`),
+      pool.query(`SELECT COUNT(*) AS total FROM na_meeting_attendance`),
+    ]);
+    const dates = dateRows.map(r => {
+      // pg returns DATE columns as JS Date objects at UTC midnight — use UTC accessors to avoid day-shift
+      return r.attended_date instanceof Date
+        ? [r.attended_date.getUTCFullYear(),
+           String(r.attended_date.getUTCMonth()+1).padStart(2,'0'),
+           String(r.attended_date.getUTCDate()).padStart(2,'0')].join('-')
         : String(r.attended_date).slice(0,10);
-      return d;
-    }));
+    });
+    res.json({ dates, total: parseInt(cnt.total) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -730,7 +782,7 @@ app.put('/api/na/steps/:num', requireAuth, async (req, res) => {
 // ── NA Daily Tasks ────────────────────────────────────────────────────────────
 app.get('/api/na/daily-tasks', requireAuth, async (_req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr();
     const { rows: tasks } = await pool.query(
       'SELECT * FROM na_daily_tasks ORDER BY sort_order, created_at'
     );
@@ -767,7 +819,7 @@ app.delete('/api/na/daily-tasks/:id', requireAuth, async (req, res) => {
 });
 
 app.post('/api/na/daily-tasks/:id/complete', requireAuth, async (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const { completed } = req.body;
   try {
     if (completed) {

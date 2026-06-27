@@ -28,6 +28,7 @@ let sobrietyTicker = null;
 // NA Recovery data
 let naMeetings        = [];
 let naAttendanceDates = [];  // distinct attended dates (YYYY-MM-DD)
+let naTotalMeetings   = 0;   // total attendance records (multiple meetings per day count separately)
 let naSponsor         = null;
 let naSteps           = [];
 let naDailyTasks      = [];
@@ -466,7 +467,8 @@ async function loadNAData() {
     nin90StartDate    = settings.nin90_start   || null;
     naProgram         = settings.program       || 'NA';
     naMeetings        = mtgs;
-    naAttendanceDates = att;
+    naAttendanceDates = att.dates ?? att;   // server now returns { dates, total }
+    naTotalMeetings   = att.total  ?? att.length;
     naSponsor         = sponsor;
     naSteps           = steps;
     naDailyTasks      = tasks;
@@ -487,7 +489,7 @@ async function loadNAData() {
     renderAvatarSidebar();
   } catch {
     sobrietyDate = null; nin90StartDate = null;
-    naMeetings = []; naAttendanceDates = []; naSponsor = null;
+    naMeetings = []; naAttendanceDates = []; naTotalMeetings = 0; naSponsor = null;
     naSteps = []; naDailyTasks = []; naResources = [];
     quitHabits = []; naSponsees = [];
   }
@@ -655,11 +657,14 @@ function renderRecoveryToday() {
 
 async function rtToggleAttend(id, attended) {
   try {
-    const result = await api('POST', `/api/na/meetings/${id}/attend`, { attended });
+    await api('POST', `/api/na/meetings/${id}/attend`, { attended });
     naMeetings = naMeetings.map(m => m.id === id ? { ...m, attendedToday: attended } : m);
+    const todayStr = dateStr(new Date());
     if (attended) {
-      const today = new Date(); const d = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-      if (!naAttendanceDates.includes(d)) naAttendanceDates = [...naAttendanceDates, d];
+      if (!naAttendanceDates.includes(todayStr)) naAttendanceDates = [...naAttendanceDates, todayStr];
+      naTotalMeetings++;
+    } else {
+      naTotalMeetings = Math.max(0, naTotalMeetings - 1);
     }
     renderRecoveryStatsRow();
     renderRecoveryToday();
@@ -714,7 +719,7 @@ function renderMeetingsStats() {
     </div>
     <div class="mtg-stat">
       <div>
-        <div class="mtg-stat-val">${naAttendanceDates.length}</div>
+        <div class="mtg-stat-val">${naTotalMeetings}</div>
         <div class="mtg-stat-label">Total Meetings Attended</div>
       </div>
     </div>`;
@@ -881,8 +886,12 @@ async function toggleAttendance(id, attended) {
   try {
     await api('POST', `/api/na/meetings/${id}/attend`, { attended });
     naMeetings = naMeetings.map(m => m.id === id ? { ...m, attendedToday: attended } : m);
-    if (attended && !naAttendanceDates.includes(dateStr(new Date()))) {
-      naAttendanceDates = [dateStr(new Date()), ...naAttendanceDates];
+    const todayStr = dateStr(new Date());
+    if (attended) {
+      if (!naAttendanceDates.includes(todayStr)) naAttendanceDates = [todayStr, ...naAttendanceDates];
+      naTotalMeetings++;
+    } else {
+      naTotalMeetings = Math.max(0, naTotalMeetings - 1);
     }
     renderMeetingsTab();
     renderRecoveryToday();
@@ -3044,7 +3053,9 @@ function fmtSize(bytes) {
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
-function dateStr(d) { return d.toISOString().split('T')[0]; }
+function dateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 function fmtDate(ds, opts) {
   return new Date(ds + 'T00:00:00').toLocaleDateString('en-US', opts);
