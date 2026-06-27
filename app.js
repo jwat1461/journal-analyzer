@@ -101,10 +101,9 @@ let folderStack     = [];
 const API_BASE = (() => {
   const override = localStorage.getItem('ja_api_base')?.trim();
   if (override) return override.replace(/\/+$/, '');
-  // When served by Express on port 3001, use relative paths (same origin).
-  // When opened as file:// or via any other server (e.g. VS Code Live Server),
-  // point directly at the Express backend.
-  if (window.location.protocol === 'file:' || window.location.port !== '3001')
+  // Use relative paths when served by any HTTP/HTTPS server (localhost, tunnel, domain).
+  // Only fall back to absolute localhost URL when opened directly as a local file.
+  if (window.location.protocol === 'file:')
     return 'http://localhost:3001';
   return '';
 })();
