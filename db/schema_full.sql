@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS users (
   email         TEXT         UNIQUE NOT NULL,
   password_hash TEXT         NOT NULL,
   role          TEXT         DEFAULT 'user',
-  created_at    TIMESTAMPTZ  DEFAULT NOW()
+  created_at    TIMESTAMPTZ  DEFAULT NOW(),
+  login_count   INTEGER      DEFAULT 0,
+  last_login_at TIMESTAMPTZ
 );
 
 -- ── Journal Entries ───────────────────────────────────────────────────────────

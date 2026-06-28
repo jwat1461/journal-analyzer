@@ -140,6 +140,9 @@ CREATE TABLE IF NOT EXISTS step_notes (
 
 // Migration SQL — runs safely on existing databases
 const MIGRATION_SQL = `
+ALTER TABLE users ADD COLUMN IF NOT EXISTS login_count   INTEGER     DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+
 ALTER TABLE entries              ADD COLUMN IF NOT EXISTS user_id INTEGER;
 ALTER TABLE habits               ADD COLUMN IF NOT EXISTS user_id INTEGER;
 ALTER TABLE na_meetings          ADD COLUMN IF NOT EXISTS user_id INTEGER;
@@ -425,6 +428,10 @@ app.post('/api/auth/login', async (req, res) => {
     const row = rows[0];
     if (!row || !(await bcrypt.compare(password, row.password_hash)))
       return res.status(401).json({ error: 'Invalid email or password' });
+    await pool.query(
+      'UPDATE users SET login_count = login_count + 1, last_login_at = NOW() WHERE id=$1',
+      [row.id]
+    );
     const user = { id: row.id, name: row.name, email: row.email, role: row.role };
     const token = jwt.sign(user, JWT_SECRET, { expiresIn: '30d' });
     res.json({ user, token });
@@ -432,6 +439,19 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.get('/api/auth/me', requireAuth, (req, res) => res.json(req.user));
+
+app.get('/api/admin/users', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.id !== null) {
+    return res.status(403).json({ error: 'Admin only' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, email, role, created_at, login_count, last_login_at
+       FROM users ORDER BY id`
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // ── Journal Entries ───────────────────────────────────────────────────────────
 app.get('/api/entries', requireAuth, async (req, res) => {
