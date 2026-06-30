@@ -909,7 +909,16 @@ app.post('/api/na/meetings/:id/attend', requireAuth, async (req, res) => {
 app.get('/api/na/meetings/attendance', requireAuth, async (req, res) => {
   const u = uid(req);
   try {
-    const [{ rows: dateRows }, { rows: [cnt] }] = await Promise.all([
+    // Monday of current week (server local time)
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0=Sun
+    const mondayOffset = (dayOfWeek + 6) % 7;  // days since last Monday
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+    const mondayStr = monday.toISOString().slice(0, 10);
+
+    const [{ rows: dateRows }, { rows: [cnt] }, { rows: [weekCnt] }] = await Promise.all([
       pool.query(
         `SELECT DISTINCT attended_date FROM na_meeting_attendance WHERE user_id IS NOT DISTINCT FROM $1 ORDER BY attended_date DESC LIMIT 365`,
         [u]
@@ -917,6 +926,10 @@ app.get('/api/na/meetings/attendance', requireAuth, async (req, res) => {
       pool.query(
         `SELECT COUNT(*) AS total FROM na_meeting_attendance WHERE user_id IS NOT DISTINCT FROM $1`,
         [u]
+      ),
+      pool.query(
+        `SELECT COUNT(*) AS week_total FROM na_meeting_attendance WHERE user_id IS NOT DISTINCT FROM $1 AND attended_date >= $2`,
+        [u, mondayStr]
       ),
     ]);
     const dates = dateRows.map(r => {
@@ -926,7 +939,7 @@ app.get('/api/na/meetings/attendance', requireAuth, async (req, res) => {
            String(r.attended_date.getUTCDate()).padStart(2,'0')].join('-')
         : String(r.attended_date).slice(0,10);
     });
-    res.json({ dates, total: parseInt(cnt.total) });
+    res.json({ dates, total: parseInt(cnt.total), thisWeek: parseInt(weekCnt.week_total) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

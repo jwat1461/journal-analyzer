@@ -29,6 +29,7 @@ let sobrietyTicker = null;
 let naMeetings        = [];
 let naAttendanceDates = [];  // distinct attended dates (YYYY-MM-DD)
 let naTotalMeetings   = 0;   // total attendance records (multiple meetings per day count separately)
+let naMeetingsThisWeek = 0;  // meetings attended Mon–Sun this week
 let naSponsor         = null;
 let naSteps           = [];
 let naDailyTasks      = [];
@@ -172,8 +173,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (authed) {
     await loadData();
     renderAll();
+    startAutoRefresh();
   }
 });
+
+// ── Auto-Refresh ──────────────────────────────────────────────────────────────
+let _autoRefreshTimer = null;
+const AUTO_REFRESH_MS = 45_000;
+
+function startAutoRefresh() {
+  if (_autoRefreshTimer) clearInterval(_autoRefreshTimer);
+  _autoRefreshTimer = setInterval(async () => {
+    if (document.hidden) return;  // skip when tab is in background
+    try {
+      const [att, meetings, tasks] = await Promise.all([
+        api('GET', '/api/na/meetings/attendance'),
+        api('GET', '/api/na/meetings'),
+        api('GET', '/api/na/daily-tasks'),
+      ]);
+      naAttendanceDates  = att.dates    ?? att;
+      naTotalMeetings    = att.total    ?? att.length;
+      naMeetingsThisWeek = att.thisWeek ?? 0;
+      naMeetings   = meetings;
+      naDailyTasks = tasks;
+      renderMeetingsStats();
+      renderRecoveryStatsRow();
+      renderRecoveryToday();
+      if (document.getElementById('tab-meetings').classList.contains('active')) {
+        renderMeetingsTab();
+      }
+    } catch { /* silent — server might be restarting */ }
+  }, AUTO_REFRESH_MS);
+}
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 function setupAuth() {
@@ -368,14 +399,18 @@ function switchTab(tab) {
 }
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
+const THEMES = ['dark', 'light', 'na', 'ocean', 'sunset', 'forest', 'contrast'];
+const THEME_ICONS = { dark:'☀️', light:'🌙', na:'💙', ocean:'🏖️', sunset:'🌅', forest:'🌲', contrast:'⬛' };
+const THEME_LABELS = { dark:'Dark', light:'Light', na:'NA Recovery', ocean:'Ocean Blue', sunset:'Sunset Orange', forest:'Forest Green', contrast:'High Contrast' };
+
 function setupTheme() {
   const saved = localStorage.getItem('ja_theme') || 'dark';
   applyTheme(saved);
 
   document.getElementById('themeToggle').addEventListener('click', () => {
-    const order = ['dark', 'light', 'na'];
     const current = document.documentElement.getAttribute('data-theme') || 'dark';
-    const next = order[(order.indexOf(current) + 1) % order.length];
+    const idx = THEMES.indexOf(current);
+    const next = THEMES[(idx + 1) % THEMES.length];
     applyTheme(next);
     localStorage.setItem('ja_theme', next);
     setTimeout(renderCharts, 80);
@@ -383,11 +418,11 @@ function setupTheme() {
 }
 
 function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  const icons = { dark: '☀️', light: '🌙', na: '💙' };
+  const t = THEMES.includes(theme) ? theme : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
   const btn = document.getElementById('themeToggle');
-  btn.textContent = icons[theme] || '☀️';
-  btn.title = theme === 'na' ? 'NA Recovery Theme — click for dark' : 'Toggle theme';
+  btn.textContent = THEME_ICONS[t] || '☀️';
+  btn.title = `Theme: ${THEME_LABELS[t]} — click to cycle`;
 }
 
 // ── Dashboard Calendar Preview ────────────────────────────────────────────────
@@ -466,8 +501,9 @@ async function loadNAData() {
     nin90StartDate    = settings.nin90_start   || null;
     naProgram         = settings.program       || 'NA';
     naMeetings        = mtgs;
-    naAttendanceDates = att.dates ?? att;   // server now returns { dates, total }
-    naTotalMeetings   = att.total  ?? att.length;
+    naAttendanceDates  = att.dates    ?? att;
+    naTotalMeetings    = att.total    ?? att.length;
+    naMeetingsThisWeek = att.thisWeek ?? 0;
     naSponsor         = sponsor;
     naSteps           = steps;
     naDailyTasks      = tasks;
@@ -507,12 +543,8 @@ function renderRecoveryStatsRow() {
   const sob = sobrietyDate ? calcSobriety() : null;
   document.getElementById('rsbDaysClean').textContent = sob ? sob.totalDays.toLocaleString() : '—';
 
-  // Meetings attended this week (Sun–Sat)
-  const now = new Date();
-  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay()); weekStart.setHours(0,0,0,0);
-  const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth()+1).padStart(2,'0')}-${String(weekStart.getDate()).padStart(2,'0')}`;
-  const mtgsThisWeek = naAttendanceDates.filter(d => d >= weekStartStr).length;
-  document.getElementById('rsbMtgsWeek').textContent = mtgsThisWeek;
+  // Meetings attended this week (Mon–Sun) — server-computed count includes multiple meetings/day
+  document.getElementById('rsbMtgsWeek').textContent = naMeetingsThisWeek;
 
   // Step progress
   const done = naSteps.filter(s => s.completedAt).length;
@@ -591,6 +623,11 @@ function renderRecoveryToday() {
         </div>`).join('')
         : `<p class="na-pc-empty">No meetings today.</p>`}
       ${nextMtg ? `<div class="na-pc-next">Next: <strong>${escHtml(nextMtg.name)}</strong> — ${DAY_NAMES[nextMtg.dayOfWeek]}</div>` : ''}
+      <div class="na-pc-mtg-totals">
+        <span class="na-pc-mtg-stat"><strong>${naMeetingsThisWeek}</strong> this week</span>
+        <span class="na-pc-mtg-sep">·</span>
+        <span class="na-pc-mtg-stat"><strong>${naTotalMeetings}</strong> all-time</span>
+      </div>
     </div>
 
     <div class="na-preview-card">
@@ -662,9 +699,11 @@ async function rtToggleAttend(id, attended) {
     if (attended) {
       if (!naAttendanceDates.includes(todayStr)) naAttendanceDates = [...naAttendanceDates, todayStr];
       naTotalMeetings++;
+      naMeetingsThisWeek++;
       if (result.calendarEvent) { calEvents = [...calEvents, result.calendarEvent]; renderDashCalPreview(); }
     } else {
       naTotalMeetings = Math.max(0, naTotalMeetings - 1);
+      naMeetingsThisWeek = Math.max(0, naMeetingsThisWeek - 1);
     }
     renderRecoveryStatsRow();
     renderRecoveryToday();
@@ -700,9 +739,7 @@ function renderMeetingsStats() {
   let d = new Date();
   while (dateSet.has(dateStr(d))) { streak++; d = new Date(d - 864e5); }
 
-  const thisWeekStart = new Date();
-  thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
-  const weekAttended = naAttendanceDates.filter(dt => dt >= dateStr(thisWeekStart)).length;
+  const weekAttended = naMeetingsThisWeek;
 
   el.innerHTML = `
     <div class="mtg-stat">
@@ -714,14 +751,18 @@ function renderMeetingsStats() {
     <div class="mtg-stat">
       <div>
         <div class="mtg-stat-val">${weekAttended}</div>
-        <div class="mtg-stat-label">Attended This Week</div>
+        <div class="mtg-stat-label">This Week (Mon–Sun)</div>
       </div>
     </div>
     <div class="mtg-stat">
       <div>
         <div class="mtg-stat-val">${naTotalMeetings}</div>
-        <div class="mtg-stat-label">Total Meetings Attended</div>
+        <div class="mtg-stat-label">Total All-Time</div>
       </div>
+    </div>
+    <div class="mtg-stat" style="flex:0 0 auto">
+      <button class="btn btn-ghost" style="font-size:12px;padding:6px 10px"
+        onclick="syncAllMeetingsToCalendar()" title="Add all meetings to calendar">📅 Sync Calendar</button>
     </div>`;
 }
 
@@ -833,6 +874,12 @@ async function saveMeeting() {
     if (editingMeetingId) {
       const updated = await api('PUT', `/api/na/meetings/${editingMeetingId}`, body);
       naMeetings = naMeetings.map(m => m.id === editingMeetingId ? updated : m);
+      if (addToCal) {
+        // Re-sync calendar events for this meeting (remove old ones first, add fresh)
+        const tag = `meeting:${editingMeetingId}`;
+        calEvents = calEvents.filter(ev => ev.recurrenceRule !== tag);
+        await syncMeetingToCalendar({ ...body, id: editingMeetingId });
+      }
       showToast('Meeting updated', 'success');
     } else {
       body.id = `mtg-${Date.now()}`;
@@ -874,6 +921,23 @@ async function syncMeetingToCalendar(mtg) {
   if (weeks > 1) showToast(`Added ${weeks} calendar events`, 'success');
 }
 
+async function syncAllMeetingsToCalendar() {
+  if (!naMeetings.length) { showToast('No meetings to sync', 'error'); return; }
+  try {
+    showToast('Syncing meetings to calendar…', 'success');
+    for (const m of naMeetings) {
+      const tag = `meeting:${m.id}`;
+      // Remove old calendar events for this meeting before re-adding
+      const toDelete = calEvents.filter(ev => ev.recurrenceRule === tag);
+      await Promise.all(toDelete.map(ev => api('DELETE', `/api/calendar-events/${ev.id}`).catch(() => {})));
+      calEvents = calEvents.filter(ev => ev.recurrenceRule !== tag);
+      await syncMeetingToCalendar(m);
+    }
+    renderDashCalPreview();
+    showToast(`Synced ${naMeetings.length} meetings to calendar ✓`, 'success');
+  } catch (err) { showToast('Sync failed: ' + err.message, 'error'); }
+}
+
 async function deleteMeeting() {
   if (!editingMeetingId || !confirm('Delete this meeting?')) return;
   try {
@@ -897,12 +961,15 @@ async function toggleAttendance(id, attended) {
     if (attended) {
       if (!naAttendanceDates.includes(todayStr)) naAttendanceDates = [todayStr, ...naAttendanceDates];
       naTotalMeetings++;
+      naMeetingsThisWeek++;
       if (result.calendarEvent) { calEvents = [...calEvents, result.calendarEvent]; renderDashCalPreview(); }
     } else {
       naTotalMeetings = Math.max(0, naTotalMeetings - 1);
+      naMeetingsThisWeek = Math.max(0, naMeetingsThisWeek - 1);
     }
     renderMeetingsTab();
     renderRecoveryToday();
+    renderRecoveryStatsRow();
     showToast(attended ? '✓ Attendance marked!' : 'Attendance removed', 'success');
   } catch (err) { showToast('Failed: ' + err.message, 'error'); }
 }

@@ -28,6 +28,83 @@
   --success-bg: #dcfce7;
 }
 
+/* ── Ocean Blue Theme ─────────────────────────────────────────────────────── */
+[data-theme="ocean"] {
+  --bg: #0a1628;
+  --surface: #0f2040;
+  --surface2: #142850;
+  --border: #1e3a60;
+  --text: #cce8ff;
+  --text-muted: #5a8ab0;
+  --primary: #0ea5e9;
+  --primary-hover: #0284c7;
+  --primary-dim: rgba(14,165,233,0.14);
+  --accent: #38bdf8;
+  --success: #34d399;
+  --success-bg: rgba(52,211,153,0.15);
+  --warning: #fbbf24;
+  --danger: #f87171;
+}
+
+/* ── Sunset Orange Theme ──────────────────────────────────────────────────── */
+[data-theme="sunset"] {
+  --bg: #1a0f0a;
+  --surface: #2a1810;
+  --surface2: #362015;
+  --border: #4d2e1a;
+  --text: #fde8d0;
+  --text-muted: #a07050;
+  --primary: #f97316;
+  --primary-hover: #ea6910;
+  --primary-dim: rgba(249,115,22,0.14);
+  --accent: #fb923c;
+  --success: #4ade80;
+  --success-bg: rgba(74,222,128,0.15);
+  --warning: #facc15;
+  --danger: #f87171;
+}
+
+/* ── Forest Green Theme ───────────────────────────────────────────────────── */
+[data-theme="forest"] {
+  --bg: #0a1a0e;
+  --surface: #0f2714;
+  --surface2: #15331a;
+  --border: #1e4728;
+  --text: #d1f5d8;
+  --text-muted: #5a9068;
+  --primary: #16a34a;
+  --primary-hover: #15803d;
+  --primary-dim: rgba(22,163,74,0.14);
+  --accent: #4ade80;
+  --success: #4ade80;
+  --success-bg: rgba(74,222,128,0.15);
+  --warning: #fbbf24;
+  --danger: #f87171;
+}
+
+/* ── High-Contrast Accessibility Theme ───────────────────────────────────── */
+[data-theme="contrast"] {
+  --bg: #000000;
+  --surface: #0a0a0a;
+  --surface2: #111111;
+  --border: #ffffff;
+  --text: #ffffff;
+  --text-muted: #cccccc;
+  --primary: #ffff00;
+  --primary-hover: #e6e600;
+  --primary-dim: rgba(255,255,0,0.2);
+  --accent: #00ffff;
+  --success: #00ff88;
+  --success-bg: rgba(0,255,136,0.2);
+  --warning: #ffaa00;
+  --danger: #ff4444;
+}
+[data-theme="contrast"] .sidebar,
+[data-theme="contrast"] .card,
+[data-theme="contrast"] .modal-box {
+  border: 2px solid var(--border);
+}
+
 /* ── Narcotics Anonymous / Recovery Theme ─────────────────────────────────── */
 [data-theme="na"] {
   --bg: #06101e;
@@ -780,20 +857,41 @@ textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
 @media (max-width: 900px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .charts-grid { grid-template-columns: 1fr; }
+  .na-preview-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 680px) {
-  .sidebar { width: 60px; }
+  /* Sidebar collapses to icon-only strip */
+  .sidebar { width: 56px; flex-shrink: 0; }
   .sidebar-header h1,
-  .nav-item span:last-child { display: none; }
-  .sidebar-header { justify-content: center; padding: 16px 0; }
-  .logo { font-size: 22px; }
-  .nav-item { justify-content: center; padding: 12px; }
-  .nav-icon { width: auto; font-size: 19px; }
+  .brand-sub,
+  .nav-item span:last-child,
   .sidebar-footer .theme-toggle span { display: none; }
-  .main-content { padding: 16px; }
+  .sidebar-header { justify-content: center; padding: 14px 0; }
+  .logo { font-size: 20px; }
+  .nav-item { justify-content: center; padding: 11px 0; gap: 0; }
+  .nav-icon { width: auto; font-size: 18px; }
+
+  /* Main content */
+  .main-content { padding: 12px 10px; }
   .form-row { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
+  .na-preview-grid { grid-template-columns: 1fr; }
+
+  /* Meetings week grid: horizontal scroll, cards don't compress */
+  .meetings-week { grid-template-columns: repeat(7, minmax(110px, 1fr)); }
+  .mtg-day-col { min-width: 110px; }
+
+  /* Stats bar wraps instead of overflowing */
+  .meetings-stats-bar { flex-wrap: wrap; gap: 8px; }
+  .mtg-stat { min-width: 80px; flex: 1 1 auto; }
+
+  /* Cards */
+  .card { padding: 14px; }
+  .card-header { flex-wrap: wrap; gap: 6px; }
+
+  /* Recovery stats row 2-col on small screens */
+  .recovery-stats-row { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ── Calendar ────────────────────────────────────────────────────────────────── */
@@ -1472,6 +1570,9 @@ textarea { resize: vertical; min-height: 200px; line-height: 1.6; }
 
 .na-pc-task-summary { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
 .na-pc-empty { font-size: 13px; color: var(--text-muted); margin: 0 0 6px; }
+.na-pc-mtg-totals { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+.na-pc-mtg-stat strong { color: var(--primary); font-weight: 700; }
+.na-pc-mtg-sep { opacity: .4; }
 .na-pc-add {
   font-size: 12px; background: none; border: 1px dashed var(--border);
   border-radius: 6px; padding: 4px 10px; color: var(--text-muted);
